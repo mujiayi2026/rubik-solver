@@ -26,25 +26,26 @@
                 <div class="cube-container">
                     <div id="cube-canvas"></div>
                     <div class="cube-controls">
-                        <button id="btn-reset" class="btn btn-secondary">重置</button>
-                        <button id="btn-scramble" class="btn btn-primary">打乱</button>
-                        <button id="btn-solve" class="btn btn-success">求解</button>
+                        <button id="btn-reset" class="btn btn-secondary">🔄 重置</button>
+                        <button id="btn-scramble" class="btn btn-primary">🔀 打乱</button>
+                        <button id="btn-solve" class="btn btn-success">✨ 求解</button>
+                        <button id="btn-auto" class="btn btn-accent">⚡ 一键求解</button>
                     </div>
                 </div>
-                
+
                 <!-- 动画控制 -->
                 <div class="animation-controls" id="animation-controls" style="display: none;">
                     <div class="progress-bar">
                         <div class="progress-fill" id="progress-fill"></div>
                     </div>
                     <div class="control-buttons">
-                        <button id="btn-prev" class="btn btn-sm">上一步</button>
-                        <button id="btn-play" class="btn btn-sm btn-primary">播放</button>
-                        <button id="btn-next" class="btn btn-sm">下一步</button>
+                        <button id="btn-prev" class="btn btn-sm">⏮ 上一步</button>
+                        <button id="btn-play" class="btn btn-sm btn-primary">▶ 播放</button>
+                        <button id="btn-next" class="btn btn-sm">下一步 ⏭</button>
                         <button id="btn-speed" class="btn btn-sm">1x</button>
                     </div>
                     <div class="step-info">
-                        <span id="current-step">0</span> / <span id="total-steps">0</span>
+                        步骤 <span id="current-step">0</span> / <span id="total-steps">0</span>
                     </div>
                 </div>
             </section>
@@ -55,7 +56,7 @@
                 <div class="panel-card" id="result-panel">
                     <h3>📊 求解结果</h3>
                     <div class="result-content">
-                        <div class="placeholder">点击"打乱"后点击"求解"开始</div>
+                        <div class="placeholder">点击「打乱」后点击「求解」，或直接点击「一键求解」</div>
                     </div>
                 </div>
 
@@ -124,15 +125,23 @@
                     </div>
                 </div>
 
+                <!-- 历史记录 -->
+                <div class="panel-card" id="history-panel">
+                    <h3>📜 求解历史</h3>
+                    <div class="history-content" id="history-list">
+                        <div class="placeholder">暂无记录</div>
+                    </div>
+                </div>
+
                 <!-- 操作说明 -->
                 <div class="panel-card">
                     <h3>📖 操作说明</h3>
                     <ul class="instructions">
                         <li>🖱️ 拖拽旋转魔方视角</li>
-                        <li>🔍 滚轮缩放</li>
-                        <li>🔀 点击"打乱"生成随机状态</li>
-                        <li>✨ 点击"求解"计算最优解</li>
+                        <li>🔍 滚轮缩放大小</li>
+                        <li>⚡「一键求解」自动生成打乱并求解</li>
                         <li>▶️ 使用动画控制查看还原过程</li>
+                        <li>🔄 速度按钮切换播放速率</li>
                     </ul>
                 </div>
             </aside>
@@ -140,7 +149,7 @@
 
         <!-- 底部 -->
         <footer class="app-footer">
-            <p>基于 Kociemba 二阶段算法 | 三阶魔方上帝之数 ≤ 20步</p>
+            <p>基于 Kociemba 二阶段算法 | 三阶魔方上帝之数 ≤ 20步 | <a href="https://github.com/mujiayi2026/rubik-solver" target="_blank">GitHub</a></p>
         </footer>
     </div>
 
