@@ -1,0 +1,36 @@
+# ==========================================
+# 魔方最优解可视化系统 - Docker Compose
+# ==========================================
+# 使用方法:
+#   启动: docker compose up -d
+#   停止: docker compose down
+#   查看日志: docker compose logs -f
+#   重新构建: docker compose up -d --build
+# ==========================================
+
+services:
+  rubik-solver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rubik-solver
+    ports:
+      - "${PORT:-5000}:5000"
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
+    # 资源限制（可选）
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 512M
+        reservations:
+          cpus: "0.5"
+          memory: 128M
+    # 日志配置
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

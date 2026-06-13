@@ -51,12 +51,32 @@ python run.py
 
 打开浏览器访问 http://localhost:5000
 
+### Docker 部署（推荐）
+
+```bash
+# 一键启动
+docker compose up -d
+
+# 或手动构建
+docker build -t rubik-solver .
+docker run -d -p 5000:5000 --name rubik-solver rubik-solver
+
+# 查看日志
+docker compose logs -f
+
+# 停止服务
+docker compose down
+```
+
 ---
 
 ## 📁 项目结构
 
 ```
 rubik-solver/
+├── Dockerfile                # Docker 镜像构建
+├── docker-compose.yml        # Docker Compose 一键部署
+├── .dockerignore             # Docker 构建排除文件
 ├── src/
 │   ├── algorithm/              # 核心算法模块
 │   │   ├── __init__.py
