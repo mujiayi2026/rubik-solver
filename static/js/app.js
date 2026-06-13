@@ -17,6 +17,7 @@ class RubikApp {
 
         this.init();
         this.initSound();
+        this.initTheme();
     }
 
     init() {
@@ -50,6 +51,47 @@ class RubikApp {
                 muteBtn.title = muted ? '开启音效' : '关闭音效';
             });
         }
+    }
+
+    // ========== 主题系统 ==========
+
+    initTheme() {
+        // 从 localStorage 读取主题偏好，默认深色
+        const saved = localStorage.getItem('rubik-theme') || 'dark';
+        this.currentTheme = saved;
+        this.applyTheme(saved);
+
+        // 绑定主题按钮
+        const themeBtn = document.getElementById('btn-theme');
+        if (themeBtn) {
+            themeBtn.addEventListener('click', () => this.toggleTheme());
+        }
+    }
+
+    applyTheme(theme) {
+        const root = document.documentElement;
+        const themeBtn = document.getElementById('btn-theme');
+
+        if (theme === 'light') {
+            root.classList.add('theme-light');
+            if (themeBtn) {
+                themeBtn.textContent = '☀️';
+                themeBtn.title = '切换深色主题 (T)';
+            }
+        } else {
+            root.classList.remove('theme-light');
+            if (themeBtn) {
+                themeBtn.textContent = '🌙';
+                themeBtn.title = '切换浅色主题 (T)';
+            }
+        }
+    }
+
+    toggleTheme() {
+        this.currentTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
+        this.applyTheme(this.currentTheme);
+        localStorage.setItem('rubik-theme', this.currentTheme);
+        window.soundManager.playClick();
     }
 
     bindEvents() {
@@ -143,6 +185,13 @@ class RubikApp {
                         if (muteBtn) muteBtn.click();
                     }
                     break;
+                case 't':
+                case 'T':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        this.toggleTheme();
+                    }
+                    break;
             }
         });
     }
@@ -161,6 +210,7 @@ class RubikApp {
                 <div class="hint-row"><kbd>R</kbd> 重置</div>
                 <div class="hint-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 调速</div>
                 <div class="hint-row"><kbd>M</kbd> 静音/取消</div>
+                <div class="hint-row"><kbd>T</kbd> 切换主题</div>
             </div>
         `;
         document.querySelector('.app-container').appendChild(hints);
