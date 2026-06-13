@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>魔方最优解可视化系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 头部 -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>🎲 魔方最优解可视化系统</h1>
+                <p class="subtitle">Kociemba二阶段算法 · 上帝之数20步内最优解</p>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 左侧：3D魔方展示 -->
+            <section class="cube-section">
+                <div class="cube-container">
+                    <div id="cube-canvas"></div>
+                    <div class="cube-controls">
+                        <button id="btn-reset" class="btn btn-secondary">重置</button>
+                        <button id="btn-scramble" class="btn btn-primary">打乱</button>
+                        <button id="btn-solve" class="btn btn-success">求解</button>
+                    </div>
+                </div>
+                
+                <!-- 动画控制 -->
+                <div class="animation-controls" id="animation-controls" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="control-buttons">
+                        <button id="btn-prev" class="btn btn-sm">上一步</button>
+                        <button id="btn-play" class="btn btn-sm btn-primary">播放</button>
+                        <button id="btn-next" class="btn btn-sm">下一步</button>
+                        <button id="btn-speed" class="btn btn-sm">1x</button>
+                    </div>
+                    <div class="step-info">
+                        <span id="current-step">0</span> / <span id="total-steps">0</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右侧：信息面板 -->
+            <aside class="info-panel">
+                <!-- 求解结果 -->
+                <div class="panel-card" id="result-panel">
+                    <h3>📊 求解结果</h3>
+                    <div class="result-content">
+                        <div class="placeholder">点击"打乱"后点击"求解"开始</div>
+                    </div>
+                </div>
+
+                <!-- 打乱信息 -->
+                <div class="panel-card" id="scramble-panel" style="display: none;">
+                    <h3>🔀 打乱步骤</h3>
+                    <div class="scramble-content">
+                        <div class="moves-display" id="scramble-moves"></div>
+                        <div class="meta-info">
+                            <span>步数: <strong id="scramble-count">0</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 解法信息 -->
+                <div class="panel-card" id="solution-panel" style="display: none;">
+                    <h3>✨ 最优解法</h3>
+                    <div class="solution-content">
+                        <div class="moves-display" id="solution-moves"></div>
+                        <div class="meta-info">
+                            <span>总步数: <strong id="solution-count">0</strong></span>
+                            <span>求解耗时: <strong id="solve-time">0</strong>ms</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 算法信息 -->
+                <div class="panel-card" id="algorithm-panel">
+                    <h3>🧠 算法信息</h3>
+                    <div class="algorithm-info">
+                        <div class="info-row">
+                            <span class="label">算法</span>
+                            <span class="value">Kociemba二阶段</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">上帝之数</span>
+                            <span class="value">≤ 20步</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">平均求解时间</span>
+                            <span class="value">< 20ms</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">状态空间</span>
+                            <span class="value">4.3×10¹⁹</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 统计信息 -->
+                <div class="panel-card" id="stats-panel">
+                    <h3>📈 本次统计</h3>
+                    <div class="stats-content">
+                        <div class="stat-item">
+                            <div class="stat-number" id="stat-moves">-</div>
+                            <div class="stat-label">总步数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="stat-time">-</div>
+                            <div class="stat-label">耗时(ms)</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="stat-efficiency">-</div>
+                            <div class="stat-label">效率</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作说明 -->
+                <div class="panel-card">
+                    <h3>📖 操作说明</h3>
+                    <ul class="instructions">
+                        <li>🖱️ 拖拽旋转魔方视角</li>
+                        <li>🔍 滚轮缩放</li>
+                        <li>🔀 点击"打乱"生成随机状态</li>
+                        <li>✨ 点击"求解"计算最优解</li>
+                        <li>▶️ 使用动画控制查看还原过程</li>
+                    </ul>
+                </div>
+            </aside>
+        </main>
+
+        <!-- 底部 -->
+        <footer class="app-footer">
+            <p>基于 Kociemba 二阶段算法 | 三阶魔方上帝之数 ≤ 20步</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/cube3d.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
