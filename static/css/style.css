@@ -435,6 +435,65 @@ body {
     text-decoration: underline;
 }
 
+/* ========== 键盘快捷键提示 ========== */
+.keyboard-hints {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.hints-toggle {
+    background: var(--bg-card);
+    color: var(--text-gray);
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: var(--transition);
+    user-select: none;
+}
+
+.hints-toggle:hover {
+    background: var(--border);
+    color: var(--text-white);
+}
+
+.hints-content {
+    position: absolute;
+    bottom: 40px;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    min-width: 200px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.hint-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    color: var(--text-gray);
+    font-size: 0.82rem;
+}
+
+kbd {
+    display: inline-block;
+    padding: 2px 7px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    color: var(--text-white);
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    min-width: 24px;
+    text-align: center;
+}
+
 /* ========== 响应式 ========== */
 @media (max-width: 1200px) {
     .main-content {
@@ -476,6 +535,10 @@ body {
 
     .stats-content {
         grid-template-columns: repeat(3, 1fr);
+    }
+
+    .keyboard-hints {
+        display: none;
     }
 }
 

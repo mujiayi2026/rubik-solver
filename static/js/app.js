@@ -17,10 +17,11 @@ class RubikApp {
     }
 
     init() {
-        // 初始化3D魔方
         this.cube = new RubiksCube3D('cube-canvas');
         this.bindEvents();
+        this.bindKeyboard();
         this.loadHistory();
+        this.showKeyboardHints();
         console.log('✅ 魔方最优解可视化系统已初始化');
     }
 
@@ -38,6 +39,89 @@ class RubikApp {
         bind('btn-play', () => this.togglePlay());
         bind('btn-next', () => this.nextStep());
         bind('btn-speed', () => this.toggleSpeed());
+    }
+
+    // ========== 键盘快捷键 ==========
+
+    bindKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            // 如果焦点在输入框中，不处理快捷键
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            switch (e.key) {
+                case ' ':
+                    e.preventDefault();
+                    if (this.currentSolution.length > 0) this.togglePlay();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    this.prevStep();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    this.nextStep();
+                    break;
+                case 'r':
+                case 'R':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        this.reset();
+                    }
+                    break;
+                case 's':
+                case 'S':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        this.scramble();
+                    }
+                    break;
+                case 'a':
+                case 'A':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        this.autoScrambleAndSolve();
+                    }
+                    break;
+                case '1':
+                    e.preventDefault();
+                    this.playSpeed = 1;
+                    document.getElementById('btn-speed').textContent = '1x';
+                    break;
+                case '2':
+                    e.preventDefault();
+                    this.playSpeed = 2;
+                    document.getElementById('btn-speed').textContent = '2x';
+                    break;
+                case '3':
+                    e.preventDefault();
+                    this.playSpeed = 3;
+                    document.getElementById('btn-speed').textContent = '3x';
+                    break;
+            }
+        });
+    }
+
+    showKeyboardHints() {
+        // 添加快捷键提示到页面
+        const hints = document.createElement('div');
+        hints.className = 'keyboard-hints';
+        hints.innerHTML = `
+            <div class="hints-toggle" id="hints-toggle">⌨️ 快捷键</div>
+            <div class="hints-content" id="hints-content" style="display:none;">
+                <div class="hint-row"><kbd>Space</kbd> 播放/暂停</div>
+                <div class="hint-row"><kbd>←</kbd><kbd>→</kbd> 上一步/下一步</div>
+                <div class="hint-row"><kbd>S</kbd> 打乱</div>
+                <div class="hint-row"><kbd>A</kbd> 一键求解</div>
+                <div class="hint-row"><kbd>R</kbd> 重置</div>
+                <div class="hint-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 调速</div>
+            </div>
+        `;
+        document.querySelector('.app-container').appendChild(hints);
+
+        document.getElementById('hints-toggle').addEventListener('click', () => {
+            const content = document.getElementById('hints-content');
+            content.style.display = content.style.display === 'none' ? 'block' : 'none';
+        });
     }
 
     // ========== 核心操作 ==========
@@ -67,7 +151,7 @@ class RubikApp {
                 await this.cube.applyMoves(data.scramble, 2);
 
                 document.getElementById('animation-controls').style.display = 'none';
-                this.updateResult('🔀 打乱完成，点击「求解」计算最优解');
+                this.updateResult('🔀 打乱完成，点击「求解」或按 S 计算最优解');
             } else {
                 this.showError('打乱失败: ' + data.error);
             }
@@ -83,7 +167,7 @@ class RubikApp {
         if (this.isBusy) return;
 
         if (this.currentScramble.length === 0) {
-            this.showError('请先点击「打乱」生成魔方状态，或使用「一键求解」');
+            this.showError('请先按 S 打乱，或按 A 一键求解');
             return;
         }
 
@@ -138,7 +222,6 @@ class RubikApp {
                 this.currentSolution = data.solution;
                 this.currentStep = 0;
 
-                // 显示打乱信息
                 if (data.scramble) {
                     this.displayScramble({
                         scramble: data.scramble,
@@ -146,17 +229,14 @@ class RubikApp {
                     });
                 }
 
-                // 显示解法
                 this.displaySolution(data);
                 this.updateStats(data);
 
-                // 先演示打乱
                 this.cube.reset();
                 if (data.scramble && data.scramble.length > 0) {
                     await this.cube.applyMoves(data.scramble, 2);
                 }
 
-                // 显示动画控制
                 document.getElementById('animation-controls').style.display = 'block';
                 this.updateStepDisplay();
 
@@ -362,7 +442,7 @@ class RubikApp {
         document.getElementById('solution-panel').style.display = 'none';
         document.getElementById('animation-controls').style.display = 'none';
 
-        this.updateResult('点击「打乱」后点击「求解」，或直接点击「一键求解」');
+        this.updateResult('按 S 打乱，按 A 一键求解，或点击下方按钮');
 
         document.getElementById('stat-moves').textContent = '-';
         document.getElementById('stat-time').textContent = '-';
