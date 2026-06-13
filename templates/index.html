@@ -17,6 +17,9 @@
                 <h1>🎲 魔方最优解可视化系统</h1>
                 <p class="subtitle">Kociemba二阶段算法 · 上帝之数20步内最优解</p>
             </div>
+            <div class="header-actions">
+                <button id="btn-mute" class="btn-icon" title="切换音效">🔊</button>
+            </div>
         </header>
 
         <!-- 主内容区 -->
@@ -148,6 +151,7 @@
                         <li>⚡「一键求解」自动生成打乱并求解</li>
                         <li>▶️ 使用动画控制查看还原过程</li>
                         <li>🔄 速度按钮切换播放速率</li>
+                        <li>🔊 右上角切换音效开关</li>
                     </ul>
                 </div>
             </aside>
@@ -162,6 +166,7 @@
     <script src="{{ url_for('static', filename='js/cube3d.js') }}"></script>
     <script src="{{ url_for('static', filename='js/cube2d.js') }}"></script>
     <script src="{{ url_for('static', filename='js/cube-state-tracker.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sound.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

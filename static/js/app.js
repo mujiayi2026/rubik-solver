@@ -16,6 +16,7 @@ class RubikApp {
         this.isBusy = false;
 
         this.init();
+        this.initSound();
     }
 
     init() {
@@ -28,6 +29,27 @@ class RubikApp {
         this.showKeyboardHints();
         this.sync2DView();
         console.log('✅ 魔方最优解可视化系统已初始化');
+    }
+
+    initSound() {
+        // 初始化音效系统（首次用户交互时启动）
+        const initAudio = () => {
+            window.soundManager.init();
+            document.removeEventListener('click', initAudio);
+            document.removeEventListener('keydown', initAudio);
+        };
+        document.addEventListener('click', initAudio);
+        document.addEventListener('keydown', initAudio);
+
+        // 绑定静音按钮
+        const muteBtn = document.getElementById('btn-mute');
+        if (muteBtn) {
+            muteBtn.addEventListener('click', () => {
+                const muted = window.soundManager.toggleMute();
+                muteBtn.textContent = muted ? '🔇' : '🔊';
+                muteBtn.title = muted ? '开启音效' : '关闭音效';
+            });
+        }
     }
 
     bindEvents() {
@@ -44,6 +66,17 @@ class RubikApp {
         bind('btn-play', () => this.togglePlay());
         bind('btn-next', () => this.nextStep());
         bind('btn-speed', () => this.toggleSpeed());
+
+        // 按钮点击音效
+        ['btn-reset', 'btn-scramble', 'btn-solve', 'btn-auto',
+         'btn-prev', 'btn-play', 'btn-next', 'btn-speed'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('click', () => {
+                    window.soundManager.playClick();
+                });
+            }
+        });
     }
 
     // ========== 键盘快捷键 ==========
@@ -102,6 +135,14 @@ class RubikApp {
                     this.playSpeed = 3;
                     document.getElementById('btn-speed').textContent = '3x';
                     break;
+                case 'm':
+                case 'M':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        const muteBtn = document.getElementById('btn-mute');
+                        if (muteBtn) muteBtn.click();
+                    }
+                    break;
             }
         });
     }
@@ -119,6 +160,7 @@ class RubikApp {
                 <div class="hint-row"><kbd>A</kbd> 一键求解</div>
                 <div class="hint-row"><kbd>R</kbd> 重置</div>
                 <div class="hint-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 调速</div>
+                <div class="hint-row"><kbd>M</kbd> 静音/取消</div>
             </div>
         `;
         document.querySelector('.app-container').appendChild(hints);
@@ -168,6 +210,8 @@ class RubikApp {
                 this.cube.reset();
                 await this.cube.applyMoves(data.scramble, 2);
 
+                window.soundManager.playScramble();
+
                 document.getElementById('animation-controls').style.display = 'none';
                 this.updateResult('🔀 打乱完成，点击「求解」或按 S 计算最优解');
             } else {
@@ -192,6 +236,7 @@ class RubikApp {
         this.isBusy = true;
         this.setButtonsEnabled(false);
         this.showLoading('🧠 正在计算最优解...');
+        window.soundManager.playSolveStart();
 
         try {
             const res = await fetch('/api/solve', {
@@ -210,6 +255,7 @@ class RubikApp {
                 this.updateStats(data);
                 this.updateResult(`✅ 最优解找到！${data.num_moves} 步，耗时 ${data.solve_time_ms}ms`);
                 this.loadHistory();
+                window.soundManager.playSolveComplete();
             } else {
                 this.showError('求解失败: ' + data.error);
             }
@@ -263,6 +309,7 @@ class RubikApp {
 
                 this.updateResult(`✅ 一键求解完成！${data.num_moves} 步，耗时 ${data.solve_time_ms}ms`);
                 this.loadHistory();
+                window.soundManager.playSolveComplete();
             } else {
                 this.showError('一键求解失败: ' + data.error);
             }
@@ -294,6 +341,7 @@ class RubikApp {
             this.updateStepDisplay();
             this.highlightCurrentMove();
             this.sync2DView();
+            window.soundManager.playRotate();
         }
     }
 
@@ -392,6 +440,7 @@ class RubikApp {
     }
 
     showError(message) {
+        window.soundManager.playError();
         const panel = document.getElementById('result-panel');
         panel.querySelector('.result-content').innerHTML =
             `<div style="text-align: center; color: var(--danger); font-size: 0.95rem;">⚠️ ${message}</div>`;
@@ -459,6 +508,7 @@ class RubikApp {
     // ========== 重置 ==========
 
     reset() {
+        window.soundManager.playReset();
         this.currentScramble = [];
         this.currentSolution = [];
         this.currentStep = 0;
