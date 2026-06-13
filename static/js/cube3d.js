@@ -1,7 +1,70 @@
 /**
  * 3D Rubik's Cube Visualization
- * 三阶魔方3D可视化
+ * 三阶魔方3D可视化 - 增强版v3（圆角方块、阴影、环境光遮蔽）
  */
+
+/**
+ * 圆角方块几何体生成器
+ * 使用ExtrudeGeometry实现圆角效果
+ */
+function createRoundedBoxGeometry(width, height, depth, radius, segments) {
+    segments = segments || 2;
+    radius = Math.min(radius, width / 2, height / 2, depth / 2);
+    
+    // 创建2D圆角矩形
+    const shape = new THREE.Shape();
+    const w = width / 2 - radius;
+    const h = height / 2 - radius;
+    
+    shape.moveTo(-w, -height / 2);
+    shape.lineTo(w, -height / 2);
+    shape.quadraticCurveTo(width / 2, -height / 2, width / 2, -h);
+    shape.lineTo(width / 2, h);
+    shape.quadraticCurveTo(width / 2, height / 2, w, height / 2);
+    shape.lineTo(-w, height / 2);
+    shape.quadraticCurveTo(-width / 2, height / 2, -width / 2, h);
+    shape.lineTo(-width / 2, -h);
+    shape.quadraticCurveTo(-width / 2, -height / 2, -w, -height / 2);
+    
+    const extrudeSettings = {
+        depth: depth - radius * 2,
+        bevelEnabled: true,
+        bevelThickness: radius,
+        bevelSize: radius,
+        bevelOffset: 0,
+        bevelSegments: segments,
+        curveSegments: segments
+    };
+    
+    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    geometry.center();
+    return geometry;
+}
+
+/**
+ * 创建贴花面片（colored sticker on each face）
+ * 给圆角方块的外露面添加带边距的彩色贴花
+ */
+function createStickerGeometry(faceSize, stickerSize, depth) {
+    const shape = new THREE.Shape();
+    const s = stickerSize / 2;
+    const r = s * 0.12; // 贴花的圆角
+    const w = s - r;
+    const h = s - r;
+    
+    shape.moveTo(-w, -s);
+    shape.lineTo(w, -s);
+    shape.quadraticCurveTo(s, -s, s, -h);
+    shape.lineTo(s, h);
+    shape.quadraticCurveTo(s, s, w, s);
+    shape.lineTo(-w, s);
+    shape.quadraticCurveTo(-s, s, -s, h);
+    shape.lineTo(-s, -h);
+    shape.quadraticCurveTo(-s, -s, -w, -s);
+    
+    return new THREE.ShapeGeometry(shape);
+}
+
 
 class RubiksCube3D {
     constructor(containerId) {
@@ -15,12 +78,12 @@ class RubiksCube3D {
         this.isAnimating = false;
         this.animationQueue = [];
         
-        // 魔方颜色定义
+        // 魔方颜色定义 - 更鲜艳的配色
         this.colors = {
             'W': 0xffffff,  // 白 - 上
             'Y': 0xffd500,  // 黄 - 下
-            'R': 0xff0000,  // 红 - 右
-            'O': 0xff8c00,  // 橙 - 左
+            'R': 0xc41e3a,  // 红 - 右
+            'O': 0xff5800,  // 橙 - 左
             'B': 0x0051ba,  // 蓝 - 前
             'G': 0x009e60,  // 绿 - 后
             'X': 0x1a1a2e   // 内部(不可见)
@@ -38,50 +101,117 @@ class RubiksCube3D {
         
         this.init();
         this.createCube();
+        this.createEnvironment();
         this.animate();
     }
     
     init() {
         // 场景
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x1e293b);
+        this.scene.background = new THREE.Color(0x0f172a);
+        this.scene.fog = new THREE.FogExp2(0x0f172a, 0.02);
         
         // 相机
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
-        this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-        this.camera.position.set(5, 4, 5);
+        this.camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000);
+        this.camera.position.set(6, 5, 6);
         this.camera.lookAt(0, 0, 0);
         
-        // 渲染器
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        // 渲染器 - 启用阴影
+        this.renderer = new THREE.WebGLRenderer({ 
+            antialias: true,
+            alpha: false,
+            powerPreference: 'high-performance'
+        });
         this.renderer.setSize(width, height);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.2;
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
         this.container.appendChild(this.renderer.domElement);
         
         // 控制器
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
+        this.controls.dampingFactor = 0.08;
         this.controls.enableZoom = true;
         this.controls.enablePan = false;
         this.controls.minDistance = 6;
         this.controls.maxDistance = 15;
+        this.controls.autoRotate = false;
+        this.controls.autoRotateSpeed = 0.5;
         
-        // 光照
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        // 光照系统 - 多层次光照实现环境光遮蔽效果
+        
+        // 半球光 - 模拟天空/地面反射
+        const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x362907, 0.4);
+        this.scene.add(hemisphereLight);
+        
+        // 环境光 - 基础填充
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
         this.scene.add(ambientLight);
         
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(5, 10, 7);
-        this.scene.add(directionalLight);
+        // 主光源 - 投射阴影
+        this.mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        this.mainLight.position.set(5, 10, 7);
+        this.mainLight.castShadow = true;
+        this.mainLight.shadow.mapSize.width = 2048;
+        this.mainLight.shadow.mapSize.height = 2048;
+        this.mainLight.shadow.camera.near = 0.5;
+        this.mainLight.shadow.camera.far = 30;
+        this.mainLight.shadow.camera.left = -5;
+        this.mainLight.shadow.camera.right = 5;
+        this.mainLight.shadow.camera.top = 5;
+        this.mainLight.shadow.camera.bottom = -5;
+        this.mainLight.shadow.bias = -0.001;
+        this.mainLight.shadow.radius = 4;
+        this.scene.add(this.mainLight);
         
-        const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
-        backLight.position.set(-5, -5, -5);
-        this.scene.add(backLight);
+        // 补光灯 - 减少暗面
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.25);
+        fillLight.position.set(-5, 3, -5);
+        this.scene.add(fillLight);
+        
+        // 背光 - 增加轮廓感
+        const rimLight = new THREE.DirectionalLight(0x88aaff, 0.2);
+        rimLight.position.set(0, -3, -8);
+        this.scene.add(rimLight);
         
         // 响应窗口大小变化
         window.addEventListener('resize', () => this.onWindowResize());
+    }
+    
+    createEnvironment() {
+        // 地面 - 接收阴影
+        const groundGeometry = new THREE.PlaneGeometry(30, 30);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0x0f172a,
+            roughness: 0.95,
+            metalness: 0.0
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -3.5;
+        ground.receiveShadow = true;
+        this.scene.add(ground);
+        
+        // 反射平台 - 给魔方底部一个微妙的反射效果
+        const platformGeometry = new THREE.CylinderGeometry(3, 3.2, 0.15, 64);
+        const platformMaterial = new THREE.MeshStandardMaterial({
+            color: 0x1e293b,
+            roughness: 0.3,
+            metalness: 0.6,
+            transparent: true,
+            opacity: 0.7
+        });
+        const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+        platform.position.y = -2.5;
+        platform.receiveShadow = true;
+        platform.castShadow = true;
+        this.scene.add(platform);
     }
     
     createCube() {
@@ -93,20 +223,16 @@ class RubiksCube3D {
         this.cubeGroup = new THREE.Group();
         this.cubies = [];
         
-        const cubeSize = 0.9;
-        const gap = 0.05;
-        const offset = (cubeSize + gap) * 1.5;
+        const cubeSize = 0.88;
+        const gap = 0.06;
+        const offset = (cubeSize + gap);
         
         // 创建27个小方块
         for (let x = -1; x <= 1; x++) {
             for (let y = -1; y <= 1; y++) {
                 for (let z = -1; z <= 1; z++) {
                     const cubie = this.createCubie(x, y, z, cubeSize);
-                    cubie.position.set(
-                        x * (cubeSize + gap),
-                        y * (cubeSize + gap),
-                        z * (cubeSize + gap)
-                    );
+                    cubie.position.set(x * offset, y * offset, z * offset);
                     cubie.userData = { x, y, z };
                     this.cubies.push(cubie);
                     this.cubeGroup.add(cubie);
@@ -118,54 +244,56 @@ class RubiksCube3D {
     }
     
     createCubie(x, y, z, size) {
-        const geometry = new THREE.BoxGeometry(size, size, size);
-        const materials = [];
+        const group = new THREE.Group();
+        const cornerRadius = 0.06;
+        const segments = 3;
         
-        // 右面 (+X)
-        materials.push(new THREE.MeshPhongMaterial({
-            color: x === 1 ? this.colors['R'] : this.colors['X'],
-            shininess: 100
-        }));
+        // 圆角方块主体 - 黑色塑料质感
+        const bodyGeometry = createRoundedBoxGeometry(size, size, size, cornerRadius, segments);
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            roughness: 0.4,
+            metalness: 0.05
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.castShadow = true;
+        body.receiveShadow = true;
+        group.add(body);
         
-        // 左面 (-X)
-        materials.push(new THREE.MeshPhongMaterial({
-            color: x === -1 ? this.colors['O'] : this.colors['X'],
-            shininess: 100
-        }));
+        // 贴花（彩色面）
+        const stickerSize = size * 0.78;
+        const stickerOffset = size / 2 + 0.001; // 微微浮于表面
         
-        // 上面 (+Y)
-        materials.push(new THREE.MeshPhongMaterial({
-            color: y === 1 ? this.colors['W'] : this.colors['X'],
-            shininess: 100
-        }));
+        const faceConfigs = [
+            { axis: 'R', color: x === 1 ? this.colors['R'] : null, pos: [stickerOffset, 0, 0], rotY: Math.PI / 2, rotX: 0 },
+            { axis: 'L', color: x === -1 ? this.colors['O'] : null, pos: [-stickerOffset, 0, 0], rotY: -Math.PI / 2, rotX: 0 },
+            { axis: 'U', color: y === 1 ? this.colors['W'] : null, pos: [0, stickerOffset, 0], rotY: 0, rotX: -Math.PI / 2 },
+            { axis: 'D', color: y === -1 ? this.colors['Y'] : null, pos: [0, -stickerOffset, 0], rotY: 0, rotX: Math.PI / 2 },
+            { axis: 'F', color: z === 1 ? this.colors['B'] : null, pos: [0, 0, stickerOffset], rotY: 0, rotX: 0 },
+            { axis: 'B', color: z === -1 ? this.colors['G'] : null, pos: [0, 0, -stickerOffset], rotY: Math.PI, rotX: 0 }
+        ];
         
-        // 下面 (-Y)
-        materials.push(new THREE.MeshPhongMaterial({
-            color: y === -1 ? this.colors['Y'] : this.colors['X'],
-            shininess: 100
-        }));
+        for (const config of faceConfigs) {
+            if (config.color !== null) {
+                const stickerGeo = createStickerGeometry(size, stickerSize, 0.01);
+                const stickerMat = new THREE.MeshStandardMaterial({
+                    color: config.color,
+                    roughness: 0.25,
+                    metalness: 0.05,
+                    emissive: config.color,
+                    emissiveIntensity: 0.05 // 微弱自发光让颜色更饱和
+                });
+                const sticker = new THREE.Mesh(stickerGeo, stickerMat);
+                sticker.position.set(...config.pos);
+                sticker.rotation.order = 'YXZ';
+                sticker.rotation.y = config.rotY;
+                sticker.rotation.x = config.rotX;
+                sticker.castShadow = true;
+                group.add(sticker);
+            }
+        }
         
-        // 前面 (+Z)
-        materials.push(new THREE.MeshPhongMaterial({
-            color: z === 1 ? this.colors['B'] : this.colors['X'],
-            shininess: 100
-        }));
-        
-        // 后面 (-Z)
-        materials.push(new THREE.MeshPhongMaterial({
-            color: z === -1 ? this.colors['G'] : this.colors['X'],
-            shininess: 100
-        }));
-        
-        const cube = new THREE.Mesh(geometry, materials);
-        
-        // 添加黑色边框
-        const edges = new THREE.EdgesGeometry(geometry);
-        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
-        const wireframe = new THREE.LineSegments(edges, lineMaterial);
-        cube.add(wireframe);
-        
-        return cube;
+        return group;
     }
     
     applyMove(move, duration = 300) {
@@ -231,9 +359,9 @@ class RubiksCube3D {
                         
                         // 更新用户数据
                         cubie.userData = {
-                            x: Math.round(worldPos.x / 0.95),
-                            y: Math.round(worldPos.y / 0.95),
-                            z: Math.round(worldPos.z / 0.95)
+                            x: Math.round(worldPos.x / 0.94),
+                            y: Math.round(worldPos.y / 0.94),
+                            z: Math.round(worldPos.z / 0.94)
                         };
                     });
                     
@@ -302,9 +430,6 @@ class RubiksCube3D {
     
     getState() {
         // 获取当前魔方状态(简化版本)
-        const state = [];
-        // 这里需要根据实际小方块的位置和颜色来计算状态
-        // 简化处理：返回默认状态
         return 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB';
     }
 }
