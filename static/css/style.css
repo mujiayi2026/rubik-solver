@@ -158,6 +158,29 @@
     border-bottom-color: var(--border);
 }
 
+.theme-light .phase-bar {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+}
+
+.theme-light .current-phase-indicator {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+}
+
+.theme-light .current-phase-indicator.phase1-active {
+    border-color: rgba(79, 70, 229, 0.3);
+}
+
+.theme-light .current-phase-indicator.phase2-active {
+    border-color: rgba(5, 150, 105, 0.3);
+}
+
+.theme-light .phase-desc {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -488,6 +511,16 @@ body {
     border-color: rgba(245, 158, 11, 0.3);
 }
 
+.move-tag.phase1-move {
+    color: #818cf8;
+    border-color: rgba(129, 140, 248, 0.3);
+}
+
+.move-tag.phase2-move {
+    color: #34d399;
+    border-color: rgba(52, 211, 153, 0.3);
+}
+
 @keyframes pulse {
     0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
     50% { transform: scale(1.08); box-shadow: 0 0 10px 2px rgba(16, 185, 129, 0.3); }
@@ -523,6 +556,201 @@ body {
 .info-row .value {
     font-weight: 600;
     color: var(--primary);
+}
+
+/* ========== 二阶段可视化 ========== */
+.phase-visualizer {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.phase-bar-container {
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.phase-bar {
+    display: flex;
+    height: 28px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+}
+
+.phase-segment {
+    height: 100%;
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.phase1-segment {
+    background: linear-gradient(90deg, #6366f1, #818cf8);
+}
+
+.phase2-segment {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.phase-marker {
+    position: absolute;
+    top: -3px;
+    width: 6px;
+    height: 34px;
+    background: white;
+    border-radius: 3px;
+    box-shadow: 0 0 8px rgba(255,255,255,0.6);
+    transition: left 0.3s ease;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.phase-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+}
+
+.phase-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.phase1-label {
+    align-items: flex-start;
+}
+
+.phase2-label {
+    align-items: flex-end;
+}
+
+.phase-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.phase-count {
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+}
+
+.phase1-label .phase-count {
+    color: #818cf8;
+}
+
+.phase2-label .phase-count {
+    color: #34d399;
+}
+
+.current-phase-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: var(--bg-dark);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--text-gray);
+}
+
+.current-phase-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-gray);
+    transition: background 0.3s ease;
+}
+
+.current-phase-indicator.phase1-active .current-phase-dot {
+    background: #818cf8;
+    box-shadow: 0 0 8px rgba(129, 140, 248, 0.6);
+}
+
+.current-phase-indicator.phase2-active .current-phase-dot {
+    background: #34d399;
+    box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+}
+
+.current-phase-indicator.phase1-active {
+    color: #818cf8;
+    border: 1px solid rgba(129, 140, 248, 0.3);
+}
+
+.current-phase-indicator.phase2-active {
+    color: #34d399;
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+/* 阶段描述 */
+.phase-descriptions {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.phase-desc {
+    padding: 10px;
+    background: var(--bg-dark);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    transition: var(--transition);
+}
+
+.phase-desc.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+}
+
+.phase-desc-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.phase-badge {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+}
+
+.phase1-badge {
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+}
+
+.phase2-badge {
+    background: linear-gradient(135deg, #10b981, #34d399);
+}
+
+.phase-desc-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-white);
+}
+
+.phase-desc-text {
+    font-size: 0.8rem;
+    color: var(--text-gray);
+    line-height: 1.5;
+    padding-left: 34px;
 }
 
 /* ========== 统计信息 ========== */

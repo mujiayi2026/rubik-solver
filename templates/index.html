@@ -93,9 +93,9 @@
                     </div>
                 </div>
 
-                <!-- 算法信息 -->
+                <!-- 算法原理可视化 -->
                 <div class="panel-card" id="algorithm-panel">
-                    <h3>🧠 算法信息</h3>
+                    <h3>🧠 二阶段算法原理</h3>
                     <div class="algorithm-info">
                         <div class="info-row">
                             <span class="label">算法</span>
@@ -106,12 +106,53 @@
                             <span class="value">≤ 20步</span>
                         </div>
                         <div class="info-row">
-                            <span class="label">平均求解时间</span>
-                            <span class="value">< 20ms</span>
-                        </div>
-                        <div class="info-row">
                             <span class="label">状态空间</span>
                             <span class="value">4.3×10¹⁹</span>
+                        </div>
+                    </div>
+
+                    <!-- 阶段可视化条 -->
+                    <div class="phase-visualizer" id="phase-visualizer" style="display: none;">
+                        <div class="phase-bar-container">
+                            <div class="phase-bar">
+                                <div class="phase-segment phase1-segment" id="phase1-bar"></div>
+                                <div class="phase-segment phase2-segment" id="phase2-bar"></div>
+                            </div>
+                            <div class="phase-marker" id="phase-marker" style="left: 0%;"></div>
+                        </div>
+                        <div class="phase-labels">
+                            <div class="phase-label phase1-label">
+                                <span class="phase-name">阶段 1</span>
+                                <span class="phase-count" id="phase1-count">0 步</span>
+                            </div>
+                            <div class="phase-label phase2-label">
+                                <span class="phase-name">阶段 2</span>
+                                <span class="phase-count" id="phase2-count">0 步</span>
+                            </div>
+                        </div>
+
+                        <!-- 当前阶段高亮 -->
+                        <div class="current-phase-indicator" id="current-phase-indicator">
+                            <span class="current-phase-dot"></span>
+                            <span id="current-phase-text">准备就绪</span>
+                        </div>
+                    </div>
+
+                    <!-- 阶段说明 -->
+                    <div class="phase-descriptions">
+                        <div class="phase-desc">
+                            <div class="phase-desc-header">
+                                <span class="phase-badge phase1-badge">1</span>
+                                <span class="phase-desc-title">G₁ 子群还原</span>
+                            </div>
+                            <p class="phase-desc-text">将魔方还原到 &lt;U, D, R², L², F², B²&gt; 子群状态：棱块方向正确、角块方向正确、中间层棱块归位</p>
+                        </div>
+                        <div class="phase-desc">
+                            <div class="phase-desc-header">
+                                <span class="phase-badge phase2-badge">2</span>
+                                <span class="phase-desc-title">子群内完全还原</span>
+                            </div>
+                            <p class="phase-desc-text">在 G₁ 子群内搜索最优解：仅使用 U, D, R², L², F², B² 操作将魔方完全还原</p>
                         </div>
                     </div>
                 </div>
@@ -152,6 +193,7 @@
                         <li>⚡「一键求解」自动生成打乱并求解</li>
                         <li>▶️ 使用动画控制查看还原过程</li>
                         <li>🔄 速度按钮切换播放速率</li>
+                        <li>🧠 求解后查看二阶段算法分解</li>
                         <li>🔊 右上角切换音效开关</li>
                         <li>🌙 右上角切换深色/浅色主题</li>
                     </ul>

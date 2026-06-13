@@ -15,6 +15,8 @@ class RubikApp {
         this.playSpeed = 1;
         this.currentStep = 0;
         this.isBusy = false;
+        this.phase1Moves = 0;  // 第一阶段步数
+        this.phase2Moves = 0;  // 第二阶段步数
 
         this.init();
         this.initSound();
@@ -474,11 +476,17 @@ class RubikApp {
         const timeDisplay = document.getElementById('solve-time');
 
         panel.style.display = 'block';
-        movesDisplay.innerHTML = data.solution.map((move, index) =>
-            `<span class="move-tag" id="move-${index}">${move}</span>`
-        ).join('');
+        movesDisplay.innerHTML = data.solution.map((move, index) => {
+            const phaseClass = index < (data.phase1_moves || 0) ? 'phase1' : 'phase2';
+            return `<span class="move-tag ${phaseClass}-move" id="move-${index}">${move}</span>`;
+        }).join('');
         countDisplay.textContent = data.num_moves;
         timeDisplay.textContent = data.solve_time_ms;
+
+        // 更新阶段可视化
+        this.phase1Moves = data.phase1_moves || 0;
+        this.phase2Moves = data.phase2_moves || 0;
+        this.updatePhaseVisualizer();
     }
 
     updateStats(data) {
@@ -486,6 +494,67 @@ class RubikApp {
         document.getElementById('stat-time').textContent = data.solve_time_ms;
         const efficiency = data.efficiency_score || (data.is_optimal ? '最优' : '非最优');
         document.getElementById('stat-efficiency').textContent = efficiency;
+    }
+
+    // ========== 二阶段可视化 ==========
+
+    updatePhaseVisualizer() {
+        const visualizer = document.getElementById('phase-visualizer');
+        if (!visualizer) return;
+
+        const total = this.phase1Moves + this.phase2Moves;
+        if (total === 0) {
+            visualizer.style.display = 'none';
+            return;
+        }
+
+        visualizer.style.display = 'block';
+
+        // 更新阶段条宽度
+        const p1Pct = (this.phase1Moves / total * 100);
+        const p2Pct = (this.phase2Moves / total * 100);
+        document.getElementById('phase1-bar').style.width = p1Pct + '%';
+        document.getElementById('phase2-bar').style.width = p2Pct + '%';
+
+        // 更新步数标签
+        document.getElementById('phase1-count').textContent = this.phase1Moves + ' 步';
+        document.getElementById('phase2-count').textContent = this.phase2Moves + ' 步';
+
+        // 重置标记位置
+        this.updatePhaseMarker();
+    }
+
+    updatePhaseMarker() {
+        const total = this.phase1Moves + this.phase2Moves;
+        if (total === 0) return;
+
+        const marker = document.getElementById('phase-marker');
+        const indicator = document.getElementById('current-phase-indicator');
+        const phaseText = document.getElementById('current-phase-text');
+        const desc1 = document.querySelector('.phase-desc:first-child');
+        const desc2 = document.querySelector('.phase-desc:last-child');
+
+        if (!marker || !indicator) return;
+
+        const pct = (this.currentStep / total * 100);
+        marker.style.left = Math.min(pct, 100) + '%';
+
+        // 更新当前阶段指示器
+        indicator.classList.remove('phase1-active', 'phase2-active');
+        if (desc1) desc1.classList.remove('active');
+        if (desc2) desc2.classList.remove('active');
+
+        if (this.currentStep === 0) {
+            phaseText.textContent = '准备就绪';
+        } else if (this.currentStep <= this.phase1Moves) {
+            indicator.classList.add('phase1-active');
+            if (desc1) desc1.classList.add('active');
+            phaseText.textContent = `阶段 1：第 ${this.currentStep}/${this.phase1Moves} 步`;
+        } else {
+            indicator.classList.add('phase2-active');
+            if (desc2) desc2.classList.add('active');
+            phaseText.textContent = `阶段 2：第 ${this.currentStep - this.phase1Moves}/${this.phase2Moves} 步`;
+        }
     }
 
     updateResult(message) {
@@ -525,6 +594,9 @@ class RubikApp {
             : 0;
         const fill = document.getElementById('progress-fill');
         if (fill) fill.style.width = progress + '%';
+
+        // 更新阶段标记
+        this.updatePhaseMarker();
     }
 
     highlightCurrentMove() {
@@ -568,6 +640,8 @@ class RubikApp {
         this.currentSolution = [];
         this.currentStep = 0;
         this.isPlaying = false;
+        this.phase1Moves = 0;
+        this.phase2Moves = 0;
 
         this.cube.reset();
         this.stateTracker.reset();
@@ -576,6 +650,10 @@ class RubikApp {
         document.getElementById('scramble-panel').style.display = 'none';
         document.getElementById('solution-panel').style.display = 'none';
         document.getElementById('animation-controls').style.display = 'none';
+
+        // 隐藏阶段可视化
+        const visualizer = document.getElementById('phase-visualizer');
+        if (visualizer) visualizer.style.display = 'none';
 
         this.updateResult('按 S 打乱，按 A 一键求解，或点击下方按钮');
 
