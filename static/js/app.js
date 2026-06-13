@@ -1,7 +1,7 @@
 /**
  * Main Application Logic
  * 主应用逻辑 - 魔方最优解可视化
- * v8.0 移动端触屏支持: 手势操作、触屏优化、滑动导航
+ * v9.0 多语言支持: 中英文切换、L键快捷键
  */
 
 class RubikApp {
@@ -21,6 +21,7 @@ class RubikApp {
         this.init();
         this.initSound();
         this.initTheme();
+        this.initI18n();
     }
 
     init() {
@@ -53,9 +54,112 @@ class RubikApp {
             muteBtn.addEventListener('click', () => {
                 const muted = window.soundManager.toggleMute();
                 muteBtn.textContent = muted ? '🔇' : '🔊';
-                muteBtn.title = muted ? '开启音效' : '关闭音效';
+                muteBtn.title = muted
+                    ? window.i18n.t('sound.mute_on')
+                    : window.i18n.t('sound.mute_off');
+                muteBtn.setAttribute('data-i18n-title', muted ? 'sound.mute_on' : 'sound.mute_off');
             });
         }
+    }
+
+    // ========== i18n 系统 ==========
+
+    initI18n() {
+        // Apply initial translations
+        window.i18n.updateDOM();
+
+        // Bind language toggle button
+        const langBtn = document.getElementById('btn-lang');
+        if (langBtn) {
+            langBtn.addEventListener('click', () => this.toggleLanguage());
+        }
+
+        // Listen for language changes to update dynamic content
+        window.i18n.onChange(() => {
+            this.updateDynamicText();
+        });
+    }
+
+    toggleLanguage() {
+        const newLang = window.i18n.toggle();
+        window.soundManager.playClick();
+
+        // Update the language button text
+        const langBtn = document.getElementById('btn-lang');
+        if (langBtn) {
+            langBtn.textContent = window.i18n.t('btn.lang');
+        }
+    }
+
+    updateDynamicText() {
+        // Update elements that are set dynamically (not in HTML template)
+
+        // Update result panel placeholder if showing default
+        const resultContent = document.querySelector('#result-panel .result-content');
+        if (resultContent) {
+            const placeholder = resultContent.querySelector('.placeholder');
+            if (placeholder && !placeholder.querySelector('.loading')) {
+                // Only update if showing default text
+                const currentText = placeholder.textContent.trim();
+                if (currentText.includes('打乱') || currentText.includes('Scramble') ||
+                    currentText.includes('按 S') || currentText.includes('scramble')) {
+                    placeholder.textContent = window.i18n.t('result.placeholder');
+                }
+            }
+        }
+
+        // Update history panel placeholder
+        const historyContent = document.getElementById('history-list');
+        if (historyContent) {
+            const placeholder = historyContent.querySelector('.placeholder');
+            if (placeholder && !historyContent.querySelector('.history-item')) {
+                placeholder.textContent = window.i18n.t('history.empty');
+            }
+        }
+
+        // Update play/pause button
+        const playBtn = document.getElementById('btn-play');
+        if (playBtn) {
+            if (this.isPlaying) {
+                playBtn.textContent = window.i18n.t('btn.pause');
+            } else {
+                playBtn.textContent = window.i18n.t('btn.play');
+            }
+        }
+
+        // Update mute button title
+        const muteBtn = document.getElementById('btn-mute');
+        if (muteBtn) {
+            const isMuted = muteBtn.textContent === '🔇';
+            muteBtn.title = isMuted
+                ? window.i18n.t('sound.mute_on')
+                : window.i18n.t('sound.mute_off');
+        }
+
+        // Update theme button title
+        const themeBtn = document.getElementById('btn-theme');
+        if (themeBtn) {
+            if (this.currentTheme === 'light') {
+                themeBtn.title = window.i18n.t('theme.dark');
+            } else {
+                themeBtn.title = window.i18n.t('theme.light');
+            }
+        }
+
+        // Update language button
+        const langBtn = document.getElementById('btn-lang');
+        if (langBtn) {
+            langBtn.textContent = window.i18n.t('btn.lang');
+        }
+
+        // Re-render keyboard hints (rebuild the hints panel)
+        this.rebuildKeyboardHints();
+
+        // Re-render touch hints if they exist
+        this.rebuildTouchHints();
+
+        // Update phase counts with correct suffix
+        this.updatePhaseVisualizer();
     }
 
     // ========== 主题系统 ==========
@@ -81,13 +185,19 @@ class RubikApp {
             root.classList.add('theme-light');
             if (themeBtn) {
                 themeBtn.textContent = '☀️';
-                themeBtn.title = '切换深色主题 (T)';
+                themeBtn.title = window.i18n ? window.i18n.t('theme.dark') : '切换深色主题 (T)';
+                if (themeBtn.hasAttribute('data-i18n-title')) {
+                    themeBtn.setAttribute('data-i18n-title', 'theme.dark');
+                }
             }
         } else {
             root.classList.remove('theme-light');
             if (themeBtn) {
                 themeBtn.textContent = '🌙';
-                themeBtn.title = '切换浅色主题 (T)';
+                themeBtn.title = window.i18n ? window.i18n.t('theme.light') : '切换浅色主题 (T)';
+                if (themeBtn.hasAttribute('data-i18n-title')) {
+                    themeBtn.setAttribute('data-i18n-title', 'theme.light');
+                }
             }
         }
     }
@@ -195,6 +305,13 @@ class RubikApp {
                     if (!e.ctrlKey && !e.metaKey) {
                         e.preventDefault();
                         this.toggleTheme();
+                    }
+                    break;
+                case 'l':
+                case 'L':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        this.toggleLanguage();
                     }
                     break;
             }
@@ -364,13 +481,14 @@ class RubikApp {
     showTouchHints() {
         const hints = document.createElement('div');
         hints.className = 'touch-hints';
+        hints.id = 'touch-hints-panel';
         hints.innerHTML = `
-            <div class="touch-hints-toggle" id="touch-hints-toggle">👆 手势</div>
+            <div class="touch-hints-toggle" id="touch-hints-toggle">${window.i18n.t('hints.touch')}</div>
             <div class="touch-hints-content" id="touch-hints-content" style="display:none;">
-                <div class="hint-row">👆 单指拖拽旋转视角</div>
-                <div class="hint-row">✌️ 双指缩放大小</div>
-                <div class="hint-row">👈 👉 左右滑动切换步骤</div>
-                <div class="hint-row">📊 拖动进度条跳转</div>
+                <div class="hint-row">${window.i18n.t('hints.touch_rotate')}</div>
+                <div class="hint-row">${window.i18n.t('hints.touch_zoom')}</div>
+                <div class="hint-row">${window.i18n.t('hints.touch_swipe')}</div>
+                <div class="hint-row">${window.i18n.t('hints.touch_progress')}</div>
             </div>
         `;
         document.querySelector('.app-container').appendChild(hints);
@@ -381,21 +499,36 @@ class RubikApp {
         });
     }
 
+    rebuildTouchHints() {
+        const existing = document.getElementById('touch-hints-panel');
+        if (existing) {
+            const toggle = existing.querySelector('#touch-hints-toggle');
+            if (toggle) toggle.textContent = window.i18n.t('hints.touch');
+            const rows = existing.querySelectorAll('.hint-row');
+            const keys = ['hints.touch_rotate', 'hints.touch_zoom', 'hints.touch_swipe', 'hints.touch_progress'];
+            rows.forEach((row, i) => {
+                if (keys[i]) row.textContent = window.i18n.t(keys[i]);
+            });
+        }
+    }
+
     showKeyboardHints() {
         // 添加快捷键提示到页面
         const hints = document.createElement('div');
         hints.className = 'keyboard-hints';
+        hints.id = 'keyboard-hints-panel';
         hints.innerHTML = `
-            <div class="hints-toggle" id="hints-toggle">⌨️ 快捷键</div>
+            <div class="hints-toggle" id="hints-toggle">${window.i18n.t('hints.keyboard')}</div>
             <div class="hints-content" id="hints-content" style="display:none;">
-                <div class="hint-row"><kbd>Space</kbd> 播放/暂停</div>
-                <div class="hint-row"><kbd>←</kbd><kbd>→</kbd> 上一步/下一步</div>
-                <div class="hint-row"><kbd>S</kbd> 打乱</div>
-                <div class="hint-row"><kbd>A</kbd> 一键求解</div>
-                <div class="hint-row"><kbd>R</kbd> 重置</div>
-                <div class="hint-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 调速</div>
-                <div class="hint-row"><kbd>M</kbd> 静音/取消</div>
-                <div class="hint-row"><kbd>T</kbd> 切换主题</div>
+                <div class="hint-row"><kbd>Space</kbd> ${window.i18n.t('hints.play_pause')}</div>
+                <div class="hint-row"><kbd>←</kbd><kbd>→</kbd> ${window.i18n.t('hints.prev_next')}</div>
+                <div class="hint-row"><kbd>S</kbd> ${window.i18n.t('hints.scramble')}</div>
+                <div class="hint-row"><kbd>A</kbd> ${window.i18n.t('hints.auto_solve')}</div>
+                <div class="hint-row"><kbd>R</kbd> ${window.i18n.t('hints.reset')}</div>
+                <div class="hint-row"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> ${window.i18n.t('hints.speed')}</div>
+                <div class="hint-row"><kbd>M</kbd> ${window.i18n.t('hints.mute')}</div>
+                <div class="hint-row"><kbd>T</kbd> ${window.i18n.t('hints.theme')}</div>
+                <div class="hint-row"><kbd>L</kbd> ${window.i18n.t('hints.lang')}</div>
             </div>
         `;
         document.querySelector('.app-container').appendChild(hints);
@@ -404,6 +537,31 @@ class RubikApp {
             const content = document.getElementById('hints-content');
             content.style.display = content.style.display === 'none' ? 'block' : 'none';
         });
+    }
+
+    rebuildKeyboardHints() {
+        const existing = document.getElementById('keyboard-hints-panel');
+        if (existing) {
+            const toggle = existing.querySelector('#hints-toggle');
+            if (toggle) toggle.textContent = window.i18n.t('hints.keyboard');
+            const rows = existing.querySelectorAll('.hint-row');
+            const keys = [
+                'hints.play_pause', 'hints.prev_next', 'hints.scramble',
+                'hints.auto_solve', 'hints.reset', 'hints.speed',
+                'hints.mute', 'hints.theme', 'hints.lang'
+            ];
+            rows.forEach((row, i) => {
+                if (keys[i]) {
+                    // Preserve kbd elements, update only the text part
+                    const kbds = row.querySelectorAll('kbd');
+                    const textNode = window.i18n.t(keys[i]);
+                    // Clear and rebuild
+                    row.innerHTML = '';
+                    kbds.forEach(kbd => row.appendChild(kbd));
+                    row.appendChild(document.createTextNode(' ' + textNode));
+                }
+            });
+        }
     }
 
     // ========== 2D 视图同步 ==========
@@ -420,7 +578,7 @@ class RubikApp {
         if (this.isBusy) return;
         this.isBusy = true;
         this.setButtonsEnabled(false);
-        this.showLoading('正在生成打乱...');
+        this.showLoading(window.i18n.t('loading.scramble'));
 
         try {
             const res = await fetch('/api/scramble', {
@@ -448,12 +606,12 @@ class RubikApp {
                 window.soundManager.playScramble();
 
                 document.getElementById('animation-controls').style.display = 'none';
-                this.updateResult('🔀 打乱完成，点击「求解」或按 S 计算最优解');
+                this.updateResult(`🔀 ${window.i18n.t('result.scramble_done')}`);
             } else {
-                this.showError('打乱失败: ' + data.error);
+                this.showError(window.i18n.t('error.scramble_fail') + data.error);
             }
         } catch (err) {
-            this.showError('请求失败: ' + err.message);
+            this.showError(window.i18n.t('error.request_fail') + err.message);
         } finally {
             this.isBusy = false;
             this.setButtonsEnabled(true);
@@ -464,13 +622,13 @@ class RubikApp {
         if (this.isBusy) return;
 
         if (this.currentScramble.length === 0) {
-            this.showError('请先按 S 打乱，或按 A 一键求解');
+            this.showError(window.i18n.t('error.need_scramble'));
             return;
         }
 
         this.isBusy = true;
         this.setButtonsEnabled(false);
-        this.showLoading('🧠 正在计算最优解...');
+        this.showLoading(window.i18n.t('loading.solve'));
         window.soundManager.playSolveStart();
 
         try {
@@ -488,15 +646,19 @@ class RubikApp {
                 document.getElementById('animation-controls').style.display = 'block';
                 this.updateStepDisplay();
                 this.updateStats(data);
-                const cacheTag = data.from_cache ? ' ⚡(缓存命中)' : '';
-                this.updateResult(`✅ 最优解找到！${data.num_moves} 步，耗时 ${data.solve_time_ms}ms${cacheTag}`);
+                const cacheTag = data.from_cache ? window.i18n.t('result.cache_hit') : '';
+                this.updateResult(`✅ ${window.i18n.t('result.solve_done', {
+                    num_moves: data.num_moves,
+                    time: data.solve_time_ms,
+                    cache: cacheTag
+                })}`);
                 this.loadHistory();
                 window.soundManager.playSolveComplete();
             } else {
-                this.showError('求解失败: ' + data.error);
+                this.showError(window.i18n.t('error.solve_fail') + data.error);
             }
         } catch (err) {
-            this.showError('请求失败: ' + err.message);
+            this.showError(window.i18n.t('error.request_fail') + err.message);
         } finally {
             this.isBusy = false;
             this.setButtonsEnabled(true);
@@ -507,7 +669,7 @@ class RubikApp {
         if (this.isBusy) return;
         this.isBusy = true;
         this.setButtonsEnabled(false);
-        this.showLoading('⚡ 一键求解中...');
+        this.showLoading(window.i18n.t('loading.auto'));
 
         try {
             const res = await fetch('/api/scramble-and-solve', {
@@ -543,15 +705,19 @@ class RubikApp {
                 document.getElementById('animation-controls').style.display = 'block';
                 this.updateStepDisplay();
 
-                const cacheTag = data.from_cache ? ' ⚡(缓存命中)' : '';
-                this.updateResult(`✅ 一键求解完成！${data.num_moves} 步，耗时 ${data.solve_time_ms}ms${cacheTag}`);
+                const cacheTag = data.from_cache ? window.i18n.t('result.cache_hit') : '';
+                this.updateResult(`✅ ${window.i18n.t('result.auto_done', {
+                    num_moves: data.num_moves,
+                    time: data.solve_time_ms,
+                    cache: cacheTag
+                })}`);
                 this.loadHistory();
                 window.soundManager.playSolveComplete();
             } else {
-                this.showError('一键求解失败: ' + data.error);
+                this.showError(window.i18n.t('error.auto_fail') + data.error);
             }
         } catch (err) {
-            this.showError('请求失败: ' + err.message);
+            this.showError(window.i18n.t('error.request_fail') + err.message);
         } finally {
             this.isBusy = false;
             this.setButtonsEnabled(true);
@@ -587,12 +753,12 @@ class RubikApp {
 
         if (this.isPlaying) {
             this.isPlaying = false;
-            btn.textContent = '▶ 播放';
+            btn.textContent = window.i18n.t('btn.play');
             btn.classList.add('btn-primary');
             btn.classList.remove('btn-secondary');
         } else {
             this.isPlaying = true;
-            btn.textContent = '⏸ 暂停';
+            btn.textContent = window.i18n.t('btn.pause');
             btn.classList.remove('btn-primary');
             btn.classList.add('btn-secondary');
             await this.playAnimation();
@@ -608,7 +774,7 @@ class RubikApp {
         if (this.currentStep >= this.currentSolution.length) {
             this.isPlaying = false;
             const btn = document.getElementById('btn-play');
-            btn.textContent = '▶ 播放';
+            btn.textContent = window.i18n.t('btn.play');
             btn.classList.add('btn-primary');
             btn.classList.remove('btn-secondary');
         }
@@ -674,7 +840,8 @@ class RubikApp {
     updateStats(data) {
         document.getElementById('stat-moves').textContent = data.num_moves;
         document.getElementById('stat-time').textContent = data.solve_time_ms;
-        const efficiency = data.efficiency_score || (data.is_optimal ? '最优' : '非最优');
+        const efficiency = data.efficiency_score ||
+            (data.is_optimal ? window.i18n.t('stat.optimal') : window.i18n.t('stat.suboptimal'));
         document.getElementById('stat-efficiency').textContent = efficiency;
     }
 
@@ -699,8 +866,9 @@ class RubikApp {
         document.getElementById('phase2-bar').style.width = p2Pct + '%';
 
         // 更新步数标签
-        document.getElementById('phase1-count').textContent = this.phase1Moves + ' 步';
-        document.getElementById('phase2-count').textContent = this.phase2Moves + ' 步';
+        const suffix = window.i18n.t('algo.steps_suffix');
+        document.getElementById('phase1-count').textContent = this.phase1Moves + suffix;
+        document.getElementById('phase2-count').textContent = this.phase2Moves + suffix;
 
         // 重置标记位置
         this.updatePhaseMarker();
@@ -727,15 +895,21 @@ class RubikApp {
         if (desc2) desc2.classList.remove('active');
 
         if (this.currentStep === 0) {
-            phaseText.textContent = '准备就绪';
+            phaseText.textContent = window.i18n.t('algo.ready');
         } else if (this.currentStep <= this.phase1Moves) {
             indicator.classList.add('phase1-active');
             if (desc1) desc1.classList.add('active');
-            phaseText.textContent = `阶段 1：第 ${this.currentStep}/${this.phase1Moves} 步`;
+            phaseText.textContent = window.i18n.t('algo.phase1_active', {
+                current: this.currentStep,
+                total: this.phase1Moves
+            });
         } else {
             indicator.classList.add('phase2-active');
             if (desc2) desc2.classList.add('active');
-            phaseText.textContent = `阶段 2：第 ${this.currentStep - this.phase1Moves}/${this.phase2Moves} 步`;
+            phaseText.textContent = window.i18n.t('algo.phase2_active', {
+                current: this.currentStep - this.phase1Moves,
+                total: this.phase2Moves
+            });
         }
     }
 
@@ -752,7 +926,7 @@ class RubikApp {
             `<div style="text-align: center; color: var(--danger); font-size: 0.95rem;">⚠️ ${message}</div>`;
     }
 
-    showLoading(message = '加载中...') {
+    showLoading(message = window.i18n.t('loading.scramble')) {
         const panel = document.getElementById('result-panel');
         panel.querySelector('.result-content').innerHTML =
             `<div style="text-align: center;"><div class="loading"></div><br><span style="color: var(--text-gray);">${message}</span></div>`;
@@ -799,11 +973,14 @@ class RubikApp {
             const data = await res.json();
             if (data.success && data.history.length > 0) {
                 const container = document.getElementById('history-list');
+                const lang = window.i18n.getLang();
                 container.innerHTML = data.history.map((h, i) => {
-                    const time = new Date(h.timestamp * 1000).toLocaleTimeString('zh-CN');
+                    const time = new Date(h.timestamp * 1000).toLocaleTimeString(
+                        lang === 'zh' ? 'zh-CN' : 'en-US'
+                    );
                     return `<div class="history-item">
-                        <span class="history-num">${h.num_moves}步</span>
-                        <span class="history-time">${h.solve_time_ms}ms</span>
+                        <span class="history-num">${h.num_moves}${window.i18n.t('history.moves_suffix')}</span>
+                        <span class="history-time">${h.solve_time_ms}${window.i18n.t('history.time_suffix')}</span>
                         <span class="history-eff">${h.efficiency_score || ''}</span>
                         <span class="history-clock">${time}</span>
                     </div>`;
@@ -837,7 +1014,14 @@ class RubikApp {
         const visualizer = document.getElementById('phase-visualizer');
         if (visualizer) visualizer.style.display = 'none';
 
-        this.updateResult('按 S 打乱，按 A 一键求解，或点击下方按钮');
+        this.updateResult(`按 S 打乱，按 A 一键求解，或点击下方按钮`);
+
+        // Use i18n for the reset message
+        if (window.i18n.getLang() === 'en') {
+            this.updateResult('Press S to scramble, A for one-click solve, or use buttons below');
+        } else {
+            this.updateResult('按 S 打乱，按 A 一键求解，或点击下方按钮');
+        }
 
         document.getElementById('stat-moves').textContent = '-';
         document.getElementById('stat-time').textContent = '-';
@@ -845,7 +1029,7 @@ class RubikApp {
 
         const btn = document.getElementById('btn-play');
         if (btn) {
-            btn.textContent = '▶ 播放';
+            btn.textContent = window.i18n.t('btn.play');
             btn.classList.add('btn-primary');
             btn.classList.remove('btn-secondary');
         }

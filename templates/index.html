@@ -14,12 +14,13 @@
         <!-- 头部 -->
         <header class="app-header">
             <div class="header-content">
-                <h1>🎲 魔方最优解可视化系统</h1>
-                <p class="subtitle">Kociemba二阶段算法 · 上帝之数20步内最优解</p>
+                <h1 data-i18n="app.title">🎲 魔方最优解可视化系统</h1>
+                <p class="subtitle" data-i18n="app.subtitle">Kociemba二阶段算法 · 上帝之数20步内最优解</p>
             </div>
             <div class="header-actions">
-                <button id="btn-theme" class="btn-icon" title="切换主题 (T)">🌙</button>
-                <button id="btn-mute" class="btn-icon" title="切换音效">🔊</button>
+                <button id="btn-lang" class="btn-icon" data-i18n-title="hints.lang" title="切换语言 (L)">EN</button>
+                <button id="btn-theme" class="btn-icon" data-i18n-title="theme.light" title="切换主题 (T)">🌙</button>
+                <button id="btn-mute" class="btn-icon" data-i18n-title="sound.mute_off" title="切换音效">🔊</button>
             </div>
         </header>
 
@@ -31,15 +32,15 @@
                     <div class="cube-views">
                         <div id="cube-canvas"></div>
                         <div class="cube-2d-wrapper">
-                            <div class="cube-2d-label">📐 2D 展开图</div>
+                            <div class="cube-2d-label" data-i18n="label.2d">📐 2D 展开图</div>
                             <div id="cube-2d"></div>
                         </div>
                     </div>
                     <div class="cube-controls">
-                        <button id="btn-reset" class="btn btn-secondary">🔄 重置</button>
-                        <button id="btn-scramble" class="btn btn-primary">🔀 打乱</button>
-                        <button id="btn-solve" class="btn btn-success">✨ 求解</button>
-                        <button id="btn-auto" class="btn btn-accent">⚡ 一键求解</button>
+                        <button id="btn-reset" class="btn btn-secondary" data-i18n="btn.reset">🔄 重置</button>
+                        <button id="btn-scramble" class="btn btn-primary" data-i18n="btn.scramble">🔀 打乱</button>
+                        <button id="btn-solve" class="btn btn-success" data-i18n="btn.solve">✨ 求解</button>
+                        <button id="btn-auto" class="btn btn-accent" data-i18n="btn.auto">⚡ 一键求解</button>
                     </div>
                 </div>
 
@@ -49,13 +50,13 @@
                         <div class="progress-fill" id="progress-fill"></div>
                     </div>
                     <div class="control-buttons">
-                        <button id="btn-prev" class="btn btn-sm">⏮ 上一步</button>
-                        <button id="btn-play" class="btn btn-sm btn-primary">▶ 播放</button>
-                        <button id="btn-next" class="btn btn-sm">下一步 ⏭</button>
+                        <button id="btn-prev" class="btn btn-sm" data-i18n="btn.prev">⏮ 上一步</button>
+                        <button id="btn-play" class="btn btn-sm btn-primary" data-i18n="btn.play">▶ 播放</button>
+                        <button id="btn-next" class="btn btn-sm" data-i18n="btn.next">下一步 ⏭</button>
                         <button id="btn-speed" class="btn btn-sm">1x</button>
                     </div>
                     <div class="step-info">
-                        步骤 <span id="current-step">0</span> / <span id="total-steps">0</span>
+                        <span data-i18n="info.step">步骤 </span><span id="current-step">0</span><span data-i18n="info.of"> / </span><span id="total-steps">0</span>
                     </div>
                 </div>
             </section>
@@ -64,50 +65,50 @@
             <aside class="info-panel">
                 <!-- 求解结果 -->
                 <div class="panel-card" id="result-panel">
-                    <h3>📊 求解结果</h3>
+                    <h3 data-i18n="panel.result">📊 求解结果</h3>
                     <div class="result-content">
-                        <div class="placeholder">点击「打乱」后点击「求解」，或直接点击「一键求解」</div>
+                        <div class="placeholder" data-i18n="result.placeholder">点击「打乱」后点击「求解」，或直接点击「一键求解」</div>
                     </div>
                 </div>
 
                 <!-- 打乱信息 -->
                 <div class="panel-card" id="scramble-panel" style="display: none;">
-                    <h3>🔀 打乱步骤</h3>
+                    <h3 data-i18n="panel.scramble">🔀 打乱步骤</h3>
                     <div class="scramble-content">
                         <div class="moves-display" id="scramble-moves"></div>
                         <div class="meta-info">
-                            <span>步数: <strong id="scramble-count">0</strong></span>
+                            <span><span data-i18n="info.steps">步数: </span><strong id="scramble-count">0</strong></span>
                         </div>
                     </div>
                 </div>
 
                 <!-- 解法信息 -->
                 <div class="panel-card" id="solution-panel" style="display: none;">
-                    <h3>✨ 最优解法</h3>
+                    <h3 data-i18n="panel.solution">✨ 最优解法</h3>
                     <div class="solution-content">
                         <div class="moves-display" id="solution-moves"></div>
                         <div class="meta-info">
-                            <span>总步数: <strong id="solution-count">0</strong></span>
-                            <span>求解耗时: <strong id="solve-time">0</strong>ms</span>
+                            <span><span data-i18n="info.total_steps">总步数: </span><strong id="solution-count">0</strong></span>
+                            <span><span data-i18n="info.solve_time">求解耗时: </span><strong id="solve-time">0</strong>ms</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- 算法原理可视化 -->
                 <div class="panel-card" id="algorithm-panel">
-                    <h3>🧠 二阶段算法原理</h3>
+                    <h3 data-i18n="panel.algorithm">🧠 二阶段算法原理</h3>
                     <div class="algorithm-info">
                         <div class="info-row">
-                            <span class="label">算法</span>
-                            <span class="value">Kociemba二阶段</span>
+                            <span class="label" data-i18n="algo.algorithm">算法</span>
+                            <span class="value" data-i18n="algo.algorithm_value">Kociemba二阶段</span>
                         </div>
                         <div class="info-row">
-                            <span class="label">上帝之数</span>
-                            <span class="value">≤ 20步</span>
+                            <span class="label" data-i18n="algo.god_number">上帝之数</span>
+                            <span class="value" data-i18n="algo.god_number_value">≤ 20步</span>
                         </div>
                         <div class="info-row">
-                            <span class="label">状态空间</span>
-                            <span class="value">4.3×10¹⁹</span>
+                            <span class="label" data-i18n="algo.state_space">状态空间</span>
+                            <span class="value" data-i18n="algo.state_space_value">4.3×10¹⁹</span>
                         </div>
                     </div>
 
@@ -122,11 +123,11 @@
                         </div>
                         <div class="phase-labels">
                             <div class="phase-label phase1-label">
-                                <span class="phase-name">阶段 1</span>
+                                <span class="phase-name" data-i18n="algo.phase">阶段 </span>1
                                 <span class="phase-count" id="phase1-count">0 步</span>
                             </div>
                             <div class="phase-label phase2-label">
-                                <span class="phase-name">阶段 2</span>
+                                <span class="phase-name" data-i18n="algo.phase">阶段 </span>2
                                 <span class="phase-count" id="phase2-count">0 步</span>
                             </div>
                         </div>
@@ -134,7 +135,7 @@
                         <!-- 当前阶段高亮 -->
                         <div class="current-phase-indicator" id="current-phase-indicator">
                             <span class="current-phase-dot"></span>
-                            <span id="current-phase-text">准备就绪</span>
+                            <span id="current-phase-text" data-i18n="algo.ready">准备就绪</span>
                         </div>
                     </div>
 
@@ -143,61 +144,61 @@
                         <div class="phase-desc">
                             <div class="phase-desc-header">
                                 <span class="phase-badge phase1-badge">1</span>
-                                <span class="phase-desc-title">G₁ 子群还原</span>
+                                <span class="phase-desc-title" data-i18n="algo.phase1_title">G₁ 子群还原</span>
                             </div>
-                            <p class="phase-desc-text">将魔方还原到 &lt;U, D, R², L², F², B²&gt; 子群状态：棱块方向正确、角块方向正确、中间层棱块归位</p>
+                            <p class="phase-desc-text" data-i18n="algo.phase1_desc">将魔方还原到 &lt;U, D, R², L², F², B²&gt; 子群状态：棱块方向正确、角块方向正确、中间层棱块归位</p>
                         </div>
                         <div class="phase-desc">
                             <div class="phase-desc-header">
                                 <span class="phase-badge phase2-badge">2</span>
-                                <span class="phase-desc-title">子群内完全还原</span>
+                                <span class="phase-desc-title" data-i18n="algo.phase2_title">子群内完全还原</span>
                             </div>
-                            <p class="phase-desc-text">在 G₁ 子群内搜索最优解：仅使用 U, D, R², L², F², B² 操作将魔方完全还原</p>
+                            <p class="phase-desc-text" data-i18n="algo.phase2_desc">在 G₁ 子群内搜索最优解：仅使用 U, D, R², L², F², B² 操作将魔方完全还原</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- 统计信息 -->
                 <div class="panel-card" id="stats-panel">
-                    <h3>📈 本次统计</h3>
+                    <h3 data-i18n="panel.stats">📈 本次统计</h3>
                     <div class="stats-content">
                         <div class="stat-item">
                             <div class="stat-number" id="stat-moves">-</div>
-                            <div class="stat-label">总步数</div>
+                            <div class="stat-label" data-i18n="stat.moves">总步数</div>
                         </div>
                         <div class="stat-item">
                             <div class="stat-number" id="stat-time">-</div>
-                            <div class="stat-label">耗时(ms)</div>
+                            <div class="stat-label" data-i18n="stat.time">耗时(ms)</div>
                         </div>
                         <div class="stat-item">
                             <div class="stat-number" id="stat-efficiency">-</div>
-                            <div class="stat-label">效率</div>
+                            <div class="stat-label" data-i18n="stat.efficiency">效率</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- 历史记录 -->
                 <div class="panel-card" id="history-panel">
-                    <h3>📜 求解历史</h3>
+                    <h3 data-i18n="panel.history">📜 求解历史</h3>
                     <div class="history-content" id="history-list">
-                        <div class="placeholder">暂无记录</div>
+                        <div class="placeholder" data-i18n="history.empty">暂无记录</div>
                     </div>
                 </div>
 
                 <!-- 操作说明 -->
                 <div class="panel-card">
-                    <h3>📖 操作说明</h3>
+                    <h3 data-i18n="panel.instructions">📖 操作说明</h3>
                     <ul class="instructions">
-                        <li>🖱️ 拖拽旋转魔方视角</li>
-                        <li>🔍 滚轮缩放大小</li>
-                        <li>⚡「一键求解」自动生成打乱并求解</li>
-                        <li>▶️ 使用动画控制查看还原过程</li>
-                        <li>🔄 速度按钮切换播放速率</li>
-                        <li>🧠 求解后查看二阶段算法分解</li>
-                        <li>🔊 右上角切换音效开关</li>
-                        <li>🌙 右上角切换深色/浅色主题</li>
-                        <li class="touch-only">👆 单指拖拽旋转视角 · 双指缩放</li>
-                        <li class="touch-only">👈👉 左右滑动切换步骤 · 拖动进度条跳转</li>
+                        <li data-i18n="help.drag">🖱️ 拖拽旋转魔方视角</li>
+                        <li data-i18n="help.zoom">🔍 滚轮缩放大小</li>
+                        <li data-i18n="help.auto">⚡「一键求解」自动生成打乱并求解</li>
+                        <li data-i18n="help.playback">▶️ 使用动画控制查看还原过程</li>
+                        <li data-i18n="help.speed">🔄 速度按钮切换播放速率</li>
+                        <li data-i18n="help.phases">🧠 求解后查看二阶段算法分解</li>
+                        <li data-i18n="help.sound">🔊 右上角切换音效开关</li>
+                        <li data-i18n="help.theme">🌙 右上角切换深色/浅色主题</li>
+                        <li class="touch-only" data-i18n="help.touch_rotate">👆 单指拖拽旋转视角 · 双指缩放</li>
+                        <li class="touch-only" data-i18n="help.touch_swipe">👈👉 左右滑动切换步骤 · 拖动进度条跳转</li>
                     </ul>
                 </div>
             </aside>
@@ -205,10 +206,11 @@
 
         <!-- 底部 -->
         <footer class="app-footer">
-            <p>基于 Kociemba 二阶段算法 | 三阶魔方上帝之数 ≤ 20步 | <a href="https://github.com/mujiayi2026/rubik-solver" target="_blank">GitHub</a></p>
+            <p><span data-i18n="footer.text">基于 Kociemba 二阶段算法 | 三阶魔方上帝之数 ≤ 20步</span> | <a href="https://github.com/mujiayi2026/rubik-solver" target="_blank">GitHub</a></p>
         </footer>
     </div>
 
+    <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
     <script src="{{ url_for('static', filename='js/cube3d.js') }}"></script>
     <script src="{{ url_for('static', filename='js/cube2d.js') }}"></script>
     <script src="{{ url_for('static', filename='js/cube-state-tracker.js') }}"></script>
