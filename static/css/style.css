@@ -103,6 +103,47 @@ body {
     cursor: grabbing;
 }
 
+/* ========== 2D 展开图 ========== */
+.cube-views {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.cube-2d-wrapper {
+    flex-shrink: 0;
+    background: #0d1117;
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.cube-2d-label {
+    font-size: 0.78rem;
+    color: var(--text-gray);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+#cube-2d {
+    min-width: 160px;
+    min-height: 120px;
+}
+
+/* 当屏幕窄时隐藏2D图 */
+@media (max-width: 1100px) {
+    .cube-2d-wrapper {
+        display: none;
+    }
+    .cube-views {
+        display: block;
+    }
+}
+
 .cube-controls {
     display: flex;
     justify-content: center;

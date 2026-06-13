@@ -24,7 +24,13 @@
             <!-- 左侧：3D魔方展示 -->
             <section class="cube-section">
                 <div class="cube-container">
-                    <div id="cube-canvas"></div>
+                    <div class="cube-views">
+                        <div id="cube-canvas"></div>
+                        <div class="cube-2d-wrapper">
+                            <div class="cube-2d-label">📐 2D 展开图</div>
+                            <div id="cube-2d"></div>
+                        </div>
+                    </div>
                     <div class="cube-controls">
                         <button id="btn-reset" class="btn btn-secondary">🔄 重置</button>
                         <button id="btn-scramble" class="btn btn-primary">🔀 打乱</button>
@@ -154,6 +160,8 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/cube3d.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/cube2d.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/cube-state-tracker.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

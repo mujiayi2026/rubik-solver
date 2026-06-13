@@ -6,6 +6,8 @@
 class RubikApp {
     constructor() {
         this.cube = null;
+        this.cube2d = null;
+        this.stateTracker = null;
         this.currentScramble = [];
         this.currentSolution = [];
         this.isPlaying = false;
@@ -18,10 +20,13 @@ class RubikApp {
 
     init() {
         this.cube = new RubiksCube3D('cube-canvas');
+        this.cube2d = new RubiksCube2D('cube-2d');
+        this.stateTracker = new CubeStateTracker();
         this.bindEvents();
         this.bindKeyboard();
         this.loadHistory();
         this.showKeyboardHints();
+        this.sync2DView();
         console.log('✅ 魔方最优解可视化系统已初始化');
     }
 
@@ -124,6 +129,14 @@ class RubikApp {
         });
     }
 
+    // ========== 2D 视图同步 ==========
+
+    sync2DView() {
+        if (this.cube2d && this.stateTracker) {
+            this.cube2d.updateFromKociemba(this.stateTracker.getState());
+        }
+    }
+
     // ========== 核心操作 ==========
 
     async scramble() {
@@ -146,6 +159,11 @@ class RubikApp {
                 this.currentStep = 0;
 
                 this.displayScramble(data);
+
+                // 更新状态追踪器
+                this.stateTracker.reset();
+                this.stateTracker.applyMoves(data.scramble);
+                this.sync2DView();
 
                 this.cube.reset();
                 await this.cube.applyMoves(data.scramble, 2);
@@ -233,9 +251,12 @@ class RubikApp {
                 this.updateStats(data);
 
                 this.cube.reset();
+                this.stateTracker.reset();
                 if (data.scramble && data.scramble.length > 0) {
+                    this.stateTracker.applyMoves(data.scramble);
                     await this.cube.applyMoves(data.scramble, 2);
                 }
+                this.sync2DView();
 
                 document.getElementById('animation-controls').style.display = 'block';
                 this.updateStepDisplay();
@@ -268,9 +289,11 @@ class RubikApp {
         if (this.currentStep < this.currentSolution.length) {
             const move = this.currentSolution[this.currentStep];
             await this.cube.applyMove(move, 300 / this.playSpeed);
+            this.stateTracker.applyMove(move);
             this.currentStep++;
             this.updateStepDisplay();
             this.highlightCurrentMove();
+            this.sync2DView();
         }
     }
 
@@ -316,10 +339,15 @@ class RubikApp {
     async resetToStep(step) {
         this.cube.reset();
         await this.cube.applyMoves(this.currentScramble, 2);
+        // 重建状态追踪器
+        this.stateTracker.reset();
+        this.stateTracker.applyMoves(this.currentScramble);
         const movesToApply = this.currentSolution.slice(0, step);
         for (const move of movesToApply) {
             await this.cube.applyMove(move, 50);
+            this.stateTracker.applyMove(move);
         }
+        this.sync2DView();
     }
 
     // ========== UI 更新 ==========
@@ -437,6 +465,8 @@ class RubikApp {
         this.isPlaying = false;
 
         this.cube.reset();
+        this.stateTracker.reset();
+        this.sync2DView();
 
         document.getElementById('scramble-panel').style.display = 'none';
         document.getElementById('solution-panel').style.display = 'none';
