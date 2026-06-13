@@ -1,6 +1,10 @@
 """
 Flask API Server
 魔方求解API服务
+
+性能优化:
+- LRU求解结果缓存（相同打乱不重复计算）
+- 条件渲染响应头
 """
 
 from flask import Flask, render_template, jsonify, request
@@ -8,6 +12,10 @@ from flask_cors import CORS
 import sys
 import os
 import logging
+import hashlib
+import json as json_mod
+from functools import lru_cache
+from collections import OrderedDict
 
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -31,6 +39,65 @@ solver = KociembaSolver()
 # 求解历史记录 (内存中，最近50条)
 solve_history = []
 MAX_HISTORY = 50
+
+
+# ========== 求解缓存系统 ==========
+class SolveCache:
+    """
+    LRU求解结果缓存
+    缓存最近的求解结果，避免对相同打乱状态重复调用kociemba
+    """
+
+    def __init__(self, max_size: int = 200):
+        self._cache = OrderedDict()
+        self._max_size = max_size
+        self._hits = 0
+        self._misses = 0
+
+    def _make_key(self, cube_state: str) -> str:
+        """生成缓存键"""
+        return hashlib.md5(cube_state.encode()).hexdigest()
+
+    def get(self, cube_state: str):
+        """获取缓存结果"""
+        key = self._make_key(cube_state)
+        if key in self._cache:
+            self._hits += 1
+            # 移到末尾（最近使用）
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        self._misses += 1
+        return None
+
+    def put(self, cube_state: str, result: dict):
+        """存入缓存"""
+        key = self._make_key(cube_state)
+        if key in self._cache:
+            self._cache.move_to_end(key)
+        else:
+            if len(self._cache) >= self._max_size:
+                self._cache.popitem(last=False)  # 移除最旧的
+            self._cache[key] = result
+
+    def get_stats(self) -> dict:
+        """获取缓存统计"""
+        total = self._hits + self._misses
+        return {
+            'cache_size': len(self._cache),
+            'cache_hits': self._hits,
+            'cache_misses': self._misses,
+            'hit_rate': f"{self._hits / total * 100:.1f}%" if total > 0 else "N/A"
+        }
+
+    def clear(self):
+        """清空缓存"""
+        self._cache.clear()
+        self._hits = 0
+        self._misses = 0
+
+
+# 全局缓存实例
+solve_cache = SolveCache(max_size=200)
 
 
 @app.route('/')
@@ -105,6 +172,12 @@ def solve():
             if len(cube_state) != 54:
                 return jsonify({'success': False, 'error': f'状态字符串长度必须为54，当前为{len(cube_state)}'}), 400
 
+            # 检查缓存
+            cached = solve_cache.get(cube_state)
+            if cached is not None:
+                cached['from_cache'] = True
+                return jsonify(cached)
+
             result = solve_cube(cube_state)
 
         # 从打乱步骤求解
@@ -116,7 +189,19 @@ def solve():
 
             cube = RubikCube()
             cube = cube.apply_moves(scramble_moves)
-            result = solve_cube(cube.to_kociemba_string())
+            cube_state = cube.to_kociemba_string()
+
+            # 检查缓存
+            cached = solve_cache.get(cube_state)
+            if cached is not None:
+                cached['from_cache'] = True
+                result = cached
+            else:
+                result = solve_cube(cube_state)
+                # 缓存成功的结果
+                if result.get('success'):
+                    solve_cache.put(cube_state, result)
+
             result['scramble'] = scramble_moves
         else:
             return jsonify({'success': False, 'error': '缺少cube_state或scramble参数'}), 400
@@ -136,6 +221,7 @@ def solve():
 def scramble_and_solve():
     """
     打乱并求解（一步到位）
+    性能优化: 同样使用求解缓存
     """
     data = request.get_json() or {}
     num_moves = data.get('num_moves', 20)
@@ -143,6 +229,10 @@ def scramble_and_solve():
 
     try:
         result = solve_scrambled_cube(num_moves)
+
+        # 缓存成功结果
+        if result.get('success') and 'cube_state' in result:
+            solve_cache.put(result['cube_state'], result)
 
         if result.get('success'):
             _add_to_history(result, result.get('scramble', []))
@@ -184,6 +274,21 @@ def reset_statistics():
     """重置统计信息"""
     solver.reset_statistics()
     return jsonify({'success': True, 'message': '统计信息已重置'})
+
+
+@app.route('/api/cache-stats', methods=['GET'])
+def cache_stats():
+    """获取缓存统计信息"""
+    stats = solve_cache.get_stats()
+    stats['success'] = True
+    return jsonify(stats)
+
+
+@app.route('/api/cache-clear', methods=['POST'])
+def cache_clear():
+    """清空求解缓存"""
+    solve_cache.clear()
+    return jsonify({'success': True, 'message': '缓存已清空'})
 
 
 @app.route('/api/history', methods=['GET'])

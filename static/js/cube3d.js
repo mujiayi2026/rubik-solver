@@ -77,6 +77,8 @@ class RubiksCube3D {
         this.cubies = [];
         this.isAnimating = false;
         this.animationQueue = [];
+        this._needsRender = true;  // 条件渲染标记
+        this._idleFrames = 0;      // 空闲帧计数
         
         // 魔方颜色定义 - 更鲜艳的配色
         this.colors = {
@@ -367,6 +369,7 @@ class RubiksCube3D {
                     
                     this.scene.remove(rotationGroup);
                     this.isAnimating = false;
+                    this.markNeedsRender();
                     resolve();
                     
                     // 处理队列中的下一个动画
@@ -412,6 +415,7 @@ class RubiksCube3D {
         this.animationQueue = [];
         this.isAnimating = false;
         this.createCube();
+        this.markNeedsRender();
     }
     
     onWindowResize() {
@@ -422,10 +426,32 @@ class RubiksCube3D {
         this.renderer.setSize(width, height);
     }
     
+    markNeedsRender() {
+        this._needsRender = true;
+        this._idleFrames = 0;
+    }
+
     animate() {
         requestAnimationFrame(() => this.animate());
-        this.controls.update();
-        this.renderer.render(this.scene, this.camera);
+
+        const controlsChanged = this.controls.update();
+
+        // 条件渲染：仅在需要时渲染
+        // 1. 控制器变化（用户拖拽/缩放）
+        // 2. 动画进行中
+        // 3. 标记需要渲染
+        // 4. 初始几帧持续渲染确保稳定
+        if (controlsChanged || this.isAnimating || this._needsRender || this._idleFrames < 30) {
+            this.renderer.render(this.scene, this.camera);
+            this._needsRender = false;
+            this._idleFrames++;
+        } else {
+            // 空闲时降低到低频渲染（每10帧渲染一次兜底）
+            if (this._idleFrames % 10 === 0) {
+                this.renderer.render(this.scene, this.camera);
+            }
+            this._idleFrames++;
+        }
     }
     
     getState() {

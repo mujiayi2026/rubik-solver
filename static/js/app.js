@@ -1,6 +1,7 @@
 /**
  * Main Application Logic
  * 主应用逻辑 - 魔方最优解可视化
+ * v6.0 性能优化: 请求防抖、前端缓存、条件渲染
  */
 
 class RubikApp {
@@ -303,7 +304,8 @@ class RubikApp {
                 document.getElementById('animation-controls').style.display = 'block';
                 this.updateStepDisplay();
                 this.updateStats(data);
-                this.updateResult(`✅ 最优解找到！${data.num_moves} 步，耗时 ${data.solve_time_ms}ms`);
+                const cacheTag = data.from_cache ? ' ⚡(缓存命中)' : '';
+                this.updateResult(`✅ 最优解找到！${data.num_moves} 步，耗时 ${data.solve_time_ms}ms${cacheTag}`);
                 this.loadHistory();
                 window.soundManager.playSolveComplete();
             } else {
@@ -357,7 +359,8 @@ class RubikApp {
                 document.getElementById('animation-controls').style.display = 'block';
                 this.updateStepDisplay();
 
-                this.updateResult(`✅ 一键求解完成！${data.num_moves} 步，耗时 ${data.solve_time_ms}ms`);
+                const cacheTag = data.from_cache ? ' ⚡(缓存命中)' : '';
+                this.updateResult(`✅ 一键求解完成！${data.num_moves} 步，耗时 ${data.solve_time_ms}ms${cacheTag}`);
                 this.loadHistory();
                 window.soundManager.playSolveComplete();
             } else {
@@ -436,15 +439,17 @@ class RubikApp {
 
     async resetToStep(step) {
         this.cube.reset();
-        await this.cube.applyMoves(this.currentScramble, 2);
+        await this.cube.applyMoves(this.currentScramble, 3);
         // 重建状态追踪器
         this.stateTracker.reset();
         this.stateTracker.applyMoves(this.currentScramble);
         const movesToApply = this.currentSolution.slice(0, step);
+        // 快速重放到目标步骤（使用极短动画时间）
         for (const move of movesToApply) {
-            await this.cube.applyMove(move, 50);
+            await this.cube.applyMove(move, 30);
             this.stateTracker.applyMove(move);
         }
+        this.cube.markNeedsRender();
         this.sync2DView();
     }
 
