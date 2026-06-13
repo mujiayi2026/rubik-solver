@@ -1026,3 +1026,246 @@ kbd {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* ========== 移动端触屏优化 ========== */
+
+/* 触屏设备专属指令 - 桌面隐藏 */
+.touch-only {
+    display: none;
+}
+
+/* 按钮触摸反馈 */
+.touch-active {
+    transform: scale(0.95) !important;
+    opacity: 0.8 !important;
+}
+
+/* Canvas 触摸视觉反馈 */
+#cube-canvas.touching {
+    box-shadow: inset 0 0 80px rgba(99, 102, 241, 0.2);
+}
+
+/* 触摸手势提示 */
+.touch-hints {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1000;
+}
+
+.touch-hints-toggle {
+    background: var(--bg-card);
+    color: var(--text-gray);
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: var(--transition);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.touch-hints-toggle:hover,
+.touch-hints-toggle:active {
+    background: var(--border);
+    color: var(--text-white);
+}
+
+.touch-hints-content {
+    position: absolute;
+    bottom: 40px;
+    left: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    min-width: 220px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* 移动设备通用优化 */
+.is-mobile {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+}
+
+.is-mobile .btn {
+    min-height: 44px;  /* Apple推荐的最小触控目标 */
+    min-width: 44px;
+}
+
+.is-mobile .btn-icon {
+    width: 44px;
+    height: 44px;
+}
+
+.is-mobile .touch-only {
+    display: list-item;
+}
+
+.is-mobile .keyboard-hints {
+    display: none !important;
+}
+
+.is-mobile .cube-controls {
+    gap: 10px;
+}
+
+.is-mobile .control-buttons {
+    gap: 12px;
+}
+
+.is-mobile .control-buttons .btn {
+    flex: 1;
+    min-width: 0;
+}
+
+.is-mobile .progress-bar {
+    height: 16px;  /* 更大的触摸区域 */
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.is-mobile .hints-toggle,
+.is-mobile .touch-hints-toggle {
+    padding: 12px 18px;
+    font-size: 0.85rem;
+}
+
+/* 移动端大屏 (手机横屏、小平板) */
+@media (max-width: 900px) and (hover: none) {
+    .btn {
+        min-height: 44px;
+        padding: 10px 18px;
+    }
+
+    .btn-sm {
+        padding: 10px 14px;
+        font-size: 0.85rem;
+    }
+
+    .cube-controls {
+        gap: 10px;
+    }
+
+    .control-buttons {
+        gap: 10px;
+    }
+
+    .progress-bar {
+        height: 14px;
+    }
+}
+
+/* 移动端小屏 (手机竖屏) */
+@media (max-width: 480px) {
+    .app-header {
+        padding: 12px 16px;
+    }
+
+    .app-header h1 {
+        font-size: 1.2rem;
+    }
+
+    .subtitle {
+        font-size: 0.8rem;
+    }
+
+    .header-actions {
+        right: 10px;
+        gap: 6px;
+    }
+
+    .main-content {
+        padding: 10px;
+        gap: 10px;
+    }
+
+    #cube-canvas {
+        height: 280px;
+    }
+
+    .cube-container {
+        padding: 12px;
+    }
+
+    .cube-controls {
+        gap: 6px;
+    }
+
+    .cube-controls .btn {
+        padding: 10px 12px;
+        font-size: 0.8rem;
+    }
+
+    .animation-controls {
+        padding: 14px;
+    }
+
+    .control-buttons {
+        gap: 6px;
+    }
+
+    .control-buttons .btn {
+        padding: 10px 8px;
+        font-size: 0.78rem;
+    }
+
+    .progress-bar {
+        height: 16px;
+    }
+
+    .panel-card {
+        padding: 14px;
+    }
+
+    .panel-card h3 {
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+    }
+
+    .info-panel {
+        gap: 12px;
+    }
+
+    .stat-number {
+        font-size: 1.3rem;
+    }
+
+    .move-tag {
+        padding: 5px 8px;
+        font-size: 0.78rem;
+    }
+
+    .moves-display {
+        gap: 5px;
+    }
+
+    .stats-content {
+        gap: 8px;
+    }
+
+    .stat-item {
+        padding: 10px;
+    }
+}
+
+/* 进度条拖拽在移动端增大触摸区域 */
+@media (hover: none) {
+    .progress-bar {
+        position: relative;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    .progress-bar::before {
+        content: '';
+        position: absolute;
+        top: -10px;
+        left: 0;
+        right: 0;
+        bottom: -10px;
+    }
+}

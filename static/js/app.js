@@ -1,7 +1,7 @@
 /**
  * Main Application Logic
  * 主应用逻辑 - 魔方最优解可视化
- * v6.0 性能优化: 请求防抖、前端缓存、条件渲染
+ * v8.0 移动端触屏支持: 手势操作、触屏优化、滑动导航
  */
 
 class RubikApp {
@@ -29,9 +29,11 @@ class RubikApp {
         this.stateTracker = new CubeStateTracker();
         this.bindEvents();
         this.bindKeyboard();
+        this.bindTouchGestures();
         this.loadHistory();
         this.showKeyboardHints();
         this.sync2DView();
+        this.setupMobileMeta();
         console.log('✅ 魔方最优解可视化系统已初始化');
     }
 
@@ -196,6 +198,186 @@ class RubikApp {
                     }
                     break;
             }
+        });
+    }
+
+    // ========== 移动端触屏支持 ==========
+
+    detectMobile() {
+        return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+            || (navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
+    }
+
+    setupMobileMeta() {
+        // 禁止双击缩放（防止干扰手势操作）
+        if (this.detectMobile()) {
+            document.body.classList.add('is-mobile');
+            // 添加触觉反馈支持
+            if ('vibrate' in navigator) {
+                this._canVibrate = true;
+            }
+        }
+    }
+
+    hapticFeedback(style = 'light') {
+        // 触觉反馈（iOS不支持vibrate，Android支持）
+        if (this._canVibrate) {
+            switch (style) {
+                case 'light': navigator.vibrate(10); break;
+                case 'medium': navigator.vibrate(20); break;
+                case 'heavy': navigator.vibrate([30, 10, 30]); break;
+            }
+        }
+    }
+
+    bindTouchGestures() {
+        // 动画控制区域的滑动手势（左右滑动切换步骤）
+        const animControls = document.getElementById('animation-controls');
+        if (animControls) {
+            this._setupSwipeNavigation(animControls);
+        }
+
+        // 进度条区域的滑动手势
+        const progressBar = document.querySelector('.progress-bar');
+        if (progressBar) {
+            this._setupProgressTouchDrag(progressBar);
+        }
+
+        // 按钮触摸反馈增强
+        this._enhanceTouchButtons();
+
+        // cube 区域的双指缩放提示
+        const cubeCanvas = document.getElementById('cube-canvas');
+        if (cubeCanvas) {
+            // 防止canvas区域的默认缩放行为干扰Three.js OrbitControls
+            cubeCanvas.style.touchAction = 'none';
+
+            // 添加触摸开始/结束视觉反馈
+            cubeCanvas.addEventListener('touchstart', () => {
+                cubeCanvas.classList.add('touching');
+            }, { passive: true });
+
+            cubeCanvas.addEventListener('touchend', () => {
+                cubeCanvas.classList.remove('touching');
+            }, { passive: true });
+        }
+
+        // 显示触摸手势提示（仅移动设备）
+        if (this.detectMobile()) {
+            this.showTouchHints();
+        }
+    }
+
+    _setupSwipeNavigation(element) {
+        let startX = 0;
+        let startY = 0;
+        let startTime = 0;
+        let isDragging = false;
+
+        element.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            startTime = Date.now();
+            isDragging = true;
+        }, { passive: true });
+
+        element.addEventListener('touchmove', (e) => {
+            // 只跟踪，不阻止默认
+        }, { passive: true });
+
+        element.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+
+            const touch = e.changedTouches[0];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+            const dt = Date.now() - startTime;
+
+            // 水平滑动判定：水平距离>50px，垂直距离<水平距离的一半，时间<500ms
+            if (Math.abs(dx) > 50 && Math.abs(dy) < Math.abs(dx) * 0.5 && dt < 500) {
+                if (dx > 0) {
+                    // 右滑 -> 下一步
+                    this.nextStep();
+                    this.hapticFeedback('light');
+                } else {
+                    // 左滑 -> 上一步
+                    this.prevStep();
+                    this.hapticFeedback('light');
+                }
+            }
+        }, { passive: true });
+    }
+
+    _setupProgressTouchDrag(progressBar) {
+        let isDragging = false;
+
+        const handleTouch = (e) => {
+            if (!this.currentSolution.length) return;
+            const touch = e.touches ? e.touches[0] : e;
+            const rect = progressBar.getBoundingClientRect();
+            const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+            const targetStep = Math.round(pct * this.currentSolution.length);
+
+            if (targetStep !== this.currentStep) {
+                this.currentStep = targetStep;
+                this.resetToStep(this.currentStep);
+                this.updateStepDisplay();
+                this.highlightCurrentMove();
+            }
+        };
+
+        progressBar.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            handleTouch(e);
+        }, { passive: true });
+
+        progressBar.addEventListener('touchmove', (e) => {
+            if (isDragging) handleTouch(e);
+        }, { passive: true });
+
+        progressBar.addEventListener('touchend', () => {
+            isDragging = false;
+            this.hapticFeedback('light');
+        }, { passive: true });
+    }
+
+    _enhanceTouchButtons() {
+        // 给所有按钮添加触摸反馈
+        const buttons = document.querySelectorAll('.btn, .btn-icon, .hints-toggle');
+        buttons.forEach(btn => {
+            btn.addEventListener('touchstart', () => {
+                btn.classList.add('touch-active');
+            }, { passive: true });
+
+            btn.addEventListener('touchend', () => {
+                setTimeout(() => btn.classList.remove('touch-active'), 150);
+            }, { passive: true });
+
+            btn.addEventListener('touchcancel', () => {
+                btn.classList.remove('touch-active');
+            }, { passive: true });
+        });
+    }
+
+    showTouchHints() {
+        const hints = document.createElement('div');
+        hints.className = 'touch-hints';
+        hints.innerHTML = `
+            <div class="touch-hints-toggle" id="touch-hints-toggle">👆 手势</div>
+            <div class="touch-hints-content" id="touch-hints-content" style="display:none;">
+                <div class="hint-row">👆 单指拖拽旋转视角</div>
+                <div class="hint-row">✌️ 双指缩放大小</div>
+                <div class="hint-row">👈 👉 左右滑动切换步骤</div>
+                <div class="hint-row">📊 拖动进度条跳转</div>
+            </div>
+        `;
+        document.querySelector('.app-container').appendChild(hints);
+
+        document.getElementById('touch-hints-toggle').addEventListener('click', () => {
+            const content = document.getElementById('touch-hints-content');
+            content.style.display = content.style.display === 'none' ? 'block' : 'none';
         });
     }
 
