@@ -1,5 +1,15 @@
 """
 魔方状态模型和求解器测试
+
+测试覆盖:
+- RubikCube 状态模型
+- from_kociemba_string 工厂方法
+- 状态验证
+- 工厂函数
+- Kociemba 求解器
+- Flask API 端点
+- 性能分析端点
+- 移动应用端点
 """
 
 import pytest
@@ -118,6 +128,59 @@ class TestRubikCube:
         moves = cube.scramble(20)
         for i in range(1, len(moves)):
             assert moves[i][0] != moves[i-1][0], f"不应连续旋转同一面: {moves[i-1]} {moves[i]}"
+
+
+class TestFromKociembaString:
+    """from_kociemba_string 工厂方法测试"""
+
+    def test_solved_state(self):
+        """已还原状态字符串创建已还原魔方"""
+        state = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB'
+        cube = RubikCube.from_kociemba_string(state)
+        assert cube.is_solved()
+
+    def test_roundtrip(self):
+        """打乱 → 导出状态 → 从状态创建 → 比较状态一致"""
+        cube1 = RubikCube()
+        cube1 = cube1.apply_moves(['R', 'U', 'F', "R'", "U'", "F'"])
+        state = cube1.to_kociemba_string()
+
+        cube2 = RubikCube.from_kociemba_string(state)
+        assert cube2.to_kociemba_string() == state
+
+    def test_roundtrip_scramble(self):
+        """随机打乱 → 状态字符串 → 重建 → 状态一致"""
+        import random
+        random.seed(42)
+        cube1 = RubikCube()
+        scramble = cube1.scramble(15)
+        state = cube1.to_kociemba_string()
+
+        cube2 = RubikCube.from_kociemba_string(state)
+        assert cube2.to_kociemba_string() == state
+
+    def test_invalid_length(self):
+        """长度不为54应抛出 ValueError"""
+        with pytest.raises(ValueError, match="54"):
+            RubikCube.from_kociemba_string("SHORT")
+
+    def test_single_move_roundtrip(self):
+        """单个移动后重建状态一致"""
+        for move in ['R', 'U', 'F', 'D', 'L', 'B']:
+            cube1 = RubikCube().apply_move(move)
+            state = cube1.to_kociemba_string()
+            cube2 = RubikCube.from_kociemba_string(state)
+            assert cube2.to_kociemba_string() == state, f"移动 {move} 的 roundtrip 失败"
+
+    def test_can_apply_moves_after_creation(self):
+        """从状态创建后可以继续应用移动"""
+        state = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB'
+        cube = RubikCube.from_kociemba_string(state)
+        cube2 = cube.apply_move('R')
+        assert cube2.to_kociemba_string() != state
+        # R + R' 应该回到原状态
+        cube3 = cube2.apply_move("R'")
+        assert cube3.to_kociemba_string() == state
 
 
 class TestValidateState:
@@ -254,6 +317,173 @@ class TestFlaskAPI:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['success'] is True
+
+    def test_validate_api(self, client):
+        """验证状态 API"""
+        state = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB'
+        resp = client.post('/api/validate', json={'cube_state': state})
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+        assert data['is_valid'] is True
+
+    def test_validate_invalid_api(self, client):
+        """验证无效状态 API"""
+        resp = client.post('/api/validate', json={'cube_state': 'SHORT'})
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['is_valid'] is False
+
+    def test_validate_missing_param(self, client):
+        """缺少参数"""
+        resp = client.post('/api/validate', json={})
+        assert resp.status_code == 400
+
+    def test_apply_move_api(self, client):
+        """应用单个移动 API"""
+        state = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB'
+        resp = client.post('/api/move', json={
+            'cube_state': state,
+            'move': 'R'
+        })
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+        assert data['move'] == 'R'
+        assert data['new_state'] != state  # 状态应该改变
+
+    def test_apply_move_roundtrip(self, client):
+        """移动 roundtrip: R + R' 应该回到原状态"""
+        state = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB'
+        # Apply R
+        resp = client.post('/api/move', json={'cube_state': state, 'move': 'R'})
+        data = resp.get_json()
+        new_state = data['new_state']
+
+        # Apply R'
+        resp = client.post('/api/move', json={'cube_state': new_state, 'move': "R'"})
+        data = resp.get_json()
+        assert data['success'] is True
+        assert data['new_state'] == state
+
+    def test_apply_move_missing_params(self, client):
+        """缺少参数"""
+        resp = client.post('/api/move', json={})
+        assert resp.status_code == 400
+
+    def test_apply_moves_api(self, client):
+        """应用多个移动 API"""
+        state = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB'
+        resp = client.post('/api/moves', json={
+            'cube_state': state,
+            'moves': ['R', 'U']
+        })
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+        assert len(data['applied_moves']) == 2
+        assert data['new_state'] != state
+
+    def test_apply_moves_invalid_type(self, client):
+        """moves 不是数组"""
+        resp = client.post('/api/moves', json={
+            'cube_state': 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB',
+            'moves': 'RU'
+        })
+        assert resp.status_code == 400
+
+
+class TestProfileAPI:
+    """性能分析端点测试"""
+
+    @pytest.fixture
+    def client(self):
+        from src.api.app import app
+        app.config['TESTING'] = True
+        with app.test_client() as client:
+            yield client
+
+    def test_profile_endpoint(self, client):
+        """性能分析端点可访问"""
+        # 先发几个请求生成数据
+        client.get('/api/health')
+        client.post('/api/scramble', json={'num_moves': 5})
+
+        resp = client.get('/api/profile')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+        assert 'endpoints' in data
+        assert data['total_requests'] >= 2
+
+    def test_profile_contains_health(self, client):
+        """性能数据应包含 health 端点"""
+        client.get('/api/health')
+        resp = client.get('/api/profile')
+        data = resp.get_json()
+        # health 端点应该有记录
+        assert 'health' in str(data['endpoints'])
+
+    def test_profile_clear(self, client):
+        """清空性能数据"""
+        client.get('/api/health')
+        resp = client.post('/api/profile-clear')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+
+        # 清空后只有 profile-clear 和 profile 自身的请求
+        resp = client.get('/api/profile')
+        data = resp.get_json()
+        # profile-clear 和 profile 本身被记录，所以 >= 0
+        assert 'endpoints' in data
+
+    def test_cache_stats(self, client):
+        """缓存统计端点"""
+        resp = client.get('/api/cache-stats')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+        assert 'cache_size' in data
+        assert 'hit_rate' in data
+
+    def test_cache_clear(self, client):
+        """清空缓存端点"""
+        resp = client.post('/api/cache-clear')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+
+    def test_statistics(self, client):
+        """求解统计端点"""
+        resp = client.get('/api/statistics')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert 'total_solves' in data
+
+    def test_reset_statistics(self, client):
+        """重置统计端点"""
+        resp = client.post('/api/reset-statistics')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+
+
+class Test404:
+    """404 测试"""
+
+    @pytest.fixture
+    def client(self):
+        from src.api.app import app
+        app.config['TESTING'] = True
+        with app.test_client() as client:
+            yield client
+
+    def test_404(self, client):
+        resp = client.get('/api/nonexistent')
+        assert resp.status_code == 404
+        data = resp.get_json()
+        assert data['success'] is False
 
 
 if __name__ == '__main__':
