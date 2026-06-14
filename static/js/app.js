@@ -572,6 +572,19 @@ class RubikApp {
         }
     }
 
+    /**
+     * 同步执行 3D 动画和 2D 状态更新
+     * 每一步 3D 动画完成后立即更新 2D 视图，保证两者始终一致
+     */
+    async applyMovesToBoth(moves, speed = 1) {
+        const duration = 300 / speed;
+        for (const move of moves) {
+            await this.cube.applyMove(move, duration);
+            this.stateTracker.applyMove(move);
+            this.sync2DView();
+        }
+    }
+
     // ========== 核心操作 ==========
 
     async scramble() {
@@ -595,13 +608,10 @@ class RubikApp {
 
                 this.displayScramble(data);
 
-                // 更新状态追踪器
+                // 更新状态追踪器和 3D 动画同步进行
                 this.stateTracker.reset();
-                this.stateTracker.applyMoves(data.scramble);
-                this.sync2DView();
-
                 this.cube.reset();
-                await this.cube.applyMoves(data.scramble, 2);
+                await this.applyMovesToBoth(data.scramble, 2);
 
                 window.soundManager.playScramble();
 
@@ -697,10 +707,8 @@ class RubikApp {
                 this.cube.reset();
                 this.stateTracker.reset();
                 if (data.scramble && data.scramble.length > 0) {
-                    this.stateTracker.applyMoves(data.scramble);
-                    await this.cube.applyMoves(data.scramble, 2);
+                    await this.applyMovesToBoth(data.scramble, 2);
                 }
-                this.sync2DView();
 
                 document.getElementById('animation-controls').style.display = 'block';
                 this.updateStepDisplay();
@@ -789,18 +797,13 @@ class RubikApp {
 
     async resetToStep(step) {
         this.cube.reset();
-        await this.cube.applyMoves(this.currentScramble, 3);
-        // 重建状态追踪器
         this.stateTracker.reset();
-        this.stateTracker.applyMoves(this.currentScramble);
-        const movesToApply = this.currentSolution.slice(0, step);
-        // 快速重放到目标步骤（使用极短动画时间）
-        for (const move of movesToApply) {
-            await this.cube.applyMove(move, 30);
-            this.stateTracker.applyMove(move);
-        }
+
+        // 重放打乱 + 解题步骤，3D 和 2D 同步
+        const allMoves = [...this.currentScramble, ...this.currentSolution.slice(0, step)];
+        await this.applyMovesToBoth(allMoves, 10);
+
         this.cube.markNeedsRender();
-        this.sync2DView();
     }
 
     // ========== UI 更新 ==========
