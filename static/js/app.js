@@ -575,6 +575,7 @@ class RubikApp {
     /**
      * 同步执行 3D 动画和 2D 状态更新
      * 每一步 3D 动画完成后立即更新 2D 视图，保证两者始终一致
+     * 最后用 setStateFromKociemba 硬同步 3D，防止动画漂移
      */
     async applyMovesToBoth(moves, speed = 1) {
         const duration = 300 / speed;
@@ -583,6 +584,8 @@ class RubikApp {
             this.stateTracker.applyMove(move);
             this.sync2DView();
         }
+        // 硬同步：用 stateTracker 的最终状态重建 3D，杜绝漂移
+        this.cube.setStateFromKociemba(this.stateTracker.getState());
     }
 
     // ========== 核心操作 ==========

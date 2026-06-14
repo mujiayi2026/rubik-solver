@@ -77,8 +77,8 @@ class RubiksCube3D {
         this.cubies = [];
         this.isAnimating = false;
         this.animationQueue = [];
-        this._needsRender = true;  // 条件渲染标记
-        this._idleFrames = 0;      // 空闲帧计数
+        this._needsRender = true;
+        this._idleFrames = 0;
         
         // 魔方颜色定义 - 更鲜艳的配色
         this.colors = {
@@ -100,6 +100,15 @@ class RubiksCube3D {
             'F': new THREE.Vector3(0, 0, 1),
             'B': new THREE.Vector3(0, 0, -1)
         };
+        
+        // Kociemba 字符到内部颜色 key 的映射
+        this.kociembaToColor = {
+            'U': 'W', 'R': 'R', 'F': 'B',
+            'D': 'Y', 'L': 'O', 'B': 'G'
+        };
+        
+        // 当前 Kociemba 状态（由外部 stateTracker 同步）
+        this._kociembaState = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB';
         
         this.init();
         this.createCube();
@@ -217,23 +226,31 @@ class RubiksCube3D {
     }
     
     createCube() {
-        // 清除现有魔方
+        this._rebuildCube('UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB');
+    }
+    
+    /**
+     * 根据 Kociemba 状态字符串重建整个 3D 魔方
+     * 这是保证 3D 和 2D 完全同步的核心方法
+     */
+    _rebuildCube(kociembaStr) {
         if (this.cubeGroup) {
             this.scene.remove(this.cubeGroup);
         }
         
         this.cubeGroup = new THREE.Group();
         this.cubies = [];
+        this._kociembaState = kociembaStr;
         
         const cubeSize = 0.88;
         const gap = 0.06;
         const offset = (cubeSize + gap);
         
-        // 创建27个小方块
         for (let x = -1; x <= 1; x++) {
             for (let y = -1; y <= 1; y++) {
                 for (let z = -1; z <= 1; z++) {
-                    const cubie = this.createCubie(x, y, z, cubeSize);
+                    const stickerColors = this._getStickerColors(x, y, z, kociembaStr);
+                    const cubie = this._createCubieWithColors(x, y, z, cubeSize, stickerColors);
                     cubie.position.set(x * offset, y * offset, z * offset);
                     cubie.userData = { x, y, z };
                     this.cubies.push(cubie);
@@ -243,9 +260,57 @@ class RubiksCube3D {
         }
         
         this.scene.add(this.cubeGroup);
+        this.markNeedsRender();
     }
     
-    createCubie(x, y, z, size) {
+    /**
+     * 根据 Kociemba 状态计算某个 cubie 各面的贴纸颜色
+     * 
+     * Kociemba 格式: 9 chars per face, order U(0-8) R(9-17) F(18-26) D(27-35) L(36-44) B(45-53)
+     * 每个面从外部看:
+     *   U(从上往下):  x=[-1,1] z=[-1,1]  → idx = (z+1)*3 + (x+1)
+     *   D(从下往上):  x=[-1,1] z=[1,-1]  → idx = 27 + (1-z)*3 + (x+1)
+     *   R(从右往左):  y=[1,-1] z=[-1,1]  → idx = 9 + (z+1)*3 + (1-y)
+     *   L(从左往右):  y=[1,-1] z=[1,-1]  → idx = 36 + (1-y)*3 + (z+1)
+     *   F(从前往后):  x=[-1,1] y=[1,-1]  → idx = 18 + (1-y)*3 + (x+1)
+     *   B(从后往前):  x=[1,-1] y=[1,-1]  → idx = 45 + (1-y)*3 + (1-x)
+     */
+    _getStickerColors(x, y, z, state) {
+        const result = {};
+        
+        if (y === 1) {
+            const idx = (z + 1) * 3 + (x + 1);
+            result.U = this.kociembaToColor[state[idx]] || 'X';
+        }
+        if (y === -1) {
+            const idx = 27 + (1 - z) * 3 + (x + 1);
+            result.D = this.kociembaToColor[state[idx]] || 'X';
+        }
+        if (x === 1) {
+            const idx = 9 + (z + 1) * 3 + (1 - y);
+            result.R = this.kociembaToColor[state[idx]] || 'X';
+        }
+        if (x === -1) {
+            const idx = 36 + (1 - y) * 3 + (z + 1);
+            result.L = this.kociembaToColor[state[idx]] || 'X';
+        }
+        if (z === 1) {
+            const idx = 18 + (1 - y) * 3 + (x + 1);
+            result.F = this.kociembaToColor[state[idx]] || 'X';
+        }
+        if (z === -1) {
+            const idx = 45 + (1 - y) * 3 + (1 - x);
+            result.B = this.kociembaToColor[state[idx]] || 'X';
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 创建带有指定贴纸颜色的 cubie
+     * stickerColors: { U: 'W', R: 'R', ... } 使用内部颜色 key
+     */
+    _createCubieWithColors(x, y, z, size, stickerColors) {
         const group = new THREE.Group();
         const cornerRadius = 0.06;
         const segments = 3;
@@ -264,26 +329,28 @@ class RubiksCube3D {
         
         // 贴花（彩色面）
         const stickerSize = size * 0.78;
-        const stickerOffset = size / 2 + 0.001; // 微微浮于表面
+        const stickerOffset = size / 2 + 0.001;
         
         const faceConfigs = [
-            { axis: 'R', color: x === 1 ? this.colors['R'] : null, pos: [stickerOffset, 0, 0], rotY: Math.PI / 2, rotX: 0 },
-            { axis: 'L', color: x === -1 ? this.colors['O'] : null, pos: [-stickerOffset, 0, 0], rotY: -Math.PI / 2, rotX: 0 },
-            { axis: 'U', color: y === 1 ? this.colors['W'] : null, pos: [0, stickerOffset, 0], rotY: 0, rotX: -Math.PI / 2 },
-            { axis: 'D', color: y === -1 ? this.colors['Y'] : null, pos: [0, -stickerOffset, 0], rotY: 0, rotX: Math.PI / 2 },
-            { axis: 'F', color: z === 1 ? this.colors['B'] : null, pos: [0, 0, stickerOffset], rotY: 0, rotX: 0 },
-            { axis: 'B', color: z === -1 ? this.colors['G'] : null, pos: [0, 0, -stickerOffset], rotY: Math.PI, rotX: 0 }
+            { face: 'R', pos: [stickerOffset, 0, 0], rotY: Math.PI / 2, rotX: 0 },
+            { face: 'L', pos: [-stickerOffset, 0, 0], rotY: -Math.PI / 2, rotX: 0 },
+            { face: 'U', pos: [0, stickerOffset, 0], rotY: 0, rotX: -Math.PI / 2 },
+            { face: 'D', pos: [0, -stickerOffset, 0], rotY: 0, rotX: Math.PI / 2 },
+            { face: 'F', pos: [0, 0, stickerOffset], rotY: 0, rotX: 0 },
+            { face: 'B', pos: [0, 0, -stickerOffset], rotY: Math.PI, rotX: 0 }
         ];
         
         for (const config of faceConfigs) {
-            if (config.color !== null) {
+            const colorKey = stickerColors[config.face];
+            if (colorKey && colorKey !== 'X') {
+                const colorHex = this.colors[colorKey];
                 const stickerGeo = createStickerGeometry(size, stickerSize, 0.01);
                 const stickerMat = new THREE.MeshStandardMaterial({
-                    color: config.color,
+                    color: colorHex,
                     roughness: 0.25,
                     metalness: 0.05,
-                    emissive: config.color,
-                    emissiveIntensity: 0.05 // 微弱自发光让颜色更饱和
+                    emissive: colorHex,
+                    emissiveIntensity: 0.05
                 });
                 const sticker = new THREE.Mesh(stickerGeo, stickerMat);
                 sticker.position.set(...config.pos);
@@ -296,6 +363,22 @@ class RubiksCube3D {
         }
         
         return group;
+    }
+    
+    /**
+     * 从 Kociemba 状态字符串设置魔方（无动画，直接重建）
+     * 用于同步、回退、错误恢复
+     */
+    setStateFromKociemba(kociembaStr) {
+        if (!kociembaStr || kociembaStr.length !== 54) return;
+        this._rebuildCube(kociembaStr);
+    }
+    
+    /**
+     * 获取当前 Kociemba 状态
+     */
+    getState() {
+        return this._kociembaState;
     }
     
     applyMove(move, duration = 300) {
@@ -314,6 +397,18 @@ class RubiksCube3D {
             const angle = (isPrime ? 1 : -1) * Math.PI / 2 * (isDouble ? 2 : 1);
             const axis = this.faceNormals[face];
             
+            // 如果 face 无效（move 格式异常），直接跳过
+            if (!axis) {
+                console.warn('3D cube: unknown move face "' + face + '" from move "' + move + '"');
+                this.isAnimating = false;
+                resolve();
+                if (this.animationQueue.length > 0) {
+                    const next = this.animationQueue.shift();
+                    this.applyMove(next.move).then(next.resolve);
+                }
+                return;
+            }
+            
             // 获取需要旋转的小方块
             const affectedCubies = this.getCubiesByFace(face);
             
@@ -329,13 +424,56 @@ class RubiksCube3D {
             // 动画旋转
             const startTime = performance.now();
             const targetRotation = angle;
+            const self = this;
+            
+            // 超时保护：如果 duration*3 ms 内动画没完成，强制结束
+            const timeout = setTimeout(() => {
+                console.warn('3D cube animation timeout, forcing completion');
+                finishRotation();
+            }, duration * 3 + 200);
+            
+            function finishRotation() {
+                try {
+                    affectedCubies.forEach(cubie => {
+                        const worldPos = new THREE.Vector3();
+                        const worldQuat = new THREE.Quaternion();
+                        cubie.getWorldPosition(worldPos);
+                        cubie.getWorldQuaternion(worldQuat);
+                        
+                        self.scene.remove(cubie);
+                        self.cubeGroup.add(cubie);
+                        
+                        cubie.position.copy(worldPos);
+                        cubie.quaternion.copy(worldQuat);
+                        
+                        cubie.userData = {
+                            x: Math.round(worldPos.x / 0.94),
+                            y: Math.round(worldPos.y / 0.94),
+                            z: Math.round(worldPos.z / 0.94)
+                        };
+                    });
+                    
+                    self.scene.remove(rotationGroup);
+                } catch (e) {
+                    console.error('3D cube rotation completion error:', e);
+                } finally {
+                    self.isAnimating = false;
+                    self.markNeedsRender();
+                    resolve();
+                    
+                    if (self.animationQueue.length > 0) {
+                        const next = self.animationQueue.shift();
+                        self.applyMove(next.move).then(next.resolve);
+                    }
+                }
+            }
             
             const animateRotation = (currentTime) => {
                 const elapsed = currentTime - startTime;
                 const progress = Math.min(elapsed / duration, 1);
                 
                 // 使用缓动函数
-                const eased = this.easeInOutCubic(progress);
+                const eased = self.easeInOutCubic(progress);
                 const currentAngle = targetRotation * eased;
                 
                 rotationGroup.rotation.set(0, 0, 0);
@@ -346,37 +484,8 @@ class RubiksCube3D {
                 if (progress < 1) {
                     requestAnimationFrame(animateRotation);
                 } else {
-                    // 完成旋转，更新小方块位置
-                    affectedCubies.forEach(cubie => {
-                        const worldPos = new THREE.Vector3();
-                        const worldQuat = new THREE.Quaternion();
-                        cubie.getWorldPosition(worldPos);
-                        cubie.getWorldQuaternion(worldQuat);
-                        
-                        this.scene.remove(cubie);
-                        this.cubeGroup.add(cubie);
-                        
-                        cubie.position.copy(worldPos);
-                        cubie.quaternion.copy(worldQuat);
-                        
-                        // 更新用户数据
-                        cubie.userData = {
-                            x: Math.round(worldPos.x / 0.94),
-                            y: Math.round(worldPos.y / 0.94),
-                            z: Math.round(worldPos.z / 0.94)
-                        };
-                    });
-                    
-                    this.scene.remove(rotationGroup);
-                    this.isAnimating = false;
-                    this.markNeedsRender();
-                    resolve();
-                    
-                    // 处理队列中的下一个动画
-                    if (this.animationQueue.length > 0) {
-                        const next = this.animationQueue.shift();
-                        this.applyMove(next.move).then(next.resolve);
-                    }
+                    clearTimeout(timeout);
+                    finishRotation();
                 }
             };
             
@@ -437,10 +546,6 @@ class RubiksCube3D {
         const controlsChanged = this.controls.update();
 
         // 条件渲染：仅在需要时渲染
-        // 1. 控制器变化（用户拖拽/缩放）
-        // 2. 动画进行中
-        // 3. 标记需要渲染
-        // 4. 初始几帧持续渲染确保稳定
         if (controlsChanged || this.isAnimating || this._needsRender || this._idleFrames < 30) {
             this.renderer.render(this.scene, this.camera);
             this._needsRender = false;
@@ -452,11 +557,6 @@ class RubiksCube3D {
             }
             this._idleFrames++;
         }
-    }
-    
-    getState() {
-        // 获取当前魔方状态(简化版本)
-        return 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB';
     }
 }
 
