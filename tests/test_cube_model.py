@@ -469,6 +469,139 @@ class TestProfileAPI:
         assert data['success'] is True
 
 
+class TestSolveCache:
+    """求解缓存单元测试"""
+
+    def test_cache_put_and_get(self):
+        """存入后能取回"""
+        from src.api.app import SolveCache
+        cache = SolveCache(max_size=10)
+        cache.put('UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB',
+                  {'success': True, 'solution': ['R', 'U']})
+        result = cache.get('UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB')
+        assert result is not None
+        assert result['success'] is True
+        assert result['solution'] == ['R', 'U']
+
+    def test_cache_miss(self):
+        """未缓存状态返回 None"""
+        from src.api.app import SolveCache
+        cache = SolveCache(max_size=10)
+        result = cache.get('UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB')
+        assert result is None
+
+    def test_cache_lru_eviction(self):
+        """缓存满后淘汰最旧条目"""
+        from src.api.app import SolveCache
+        cache = SolveCache(max_size=3)
+        cache.put('state_A', {'data': 'A'})
+        cache.put('state_B', {'data': 'B'})
+        cache.put('state_C', {'data': 'C'})
+        cache.put('state_D', {'data': 'D'})  # 应淘汰 state_A
+        assert cache.get('state_A') is None
+        assert cache.get('state_B') is not None
+        assert cache.get('state_D') is not None
+
+    def test_cache_lru_refresh(self):
+        """访问后条目移到末尾，不会被优先淘汰"""
+        from src.api.app import SolveCache
+        cache = SolveCache(max_size=3)
+        cache.put('state_A', {'data': 'A'})
+        cache.put('state_B', {'data': 'B'})
+        cache.put('state_C', {'data': 'C'})
+        cache.get('state_A')  # 刷新 A
+        cache.put('state_D', {'data': 'D'})  # 应淘汰 state_B（最久未访问）
+        assert cache.get('state_A') is not None
+        assert cache.get('state_B') is None
+
+    def test_cache_hit_miss_stats(self):
+        """统计命中/未命中次数"""
+        from src.api.app import SolveCache
+        cache = SolveCache(max_size=10)
+        cache.put('state_A', {'data': 'A'})
+        cache.get('state_A')   # hit
+        cache.get('state_A')   # hit
+        cache.get('state_X')   # miss
+        stats = cache.get_stats()
+        assert stats['cache_hits'] == 2
+        assert stats['cache_misses'] == 1
+        assert stats['cache_size'] == 1
+        assert stats['hit_rate'] == '66.7%'
+
+    def test_cache_hit_rate_empty(self):
+        """空缓存命中率返回 N/A"""
+        from src.api.app import SolveCache
+        cache = SolveCache(max_size=10)
+        stats = cache.get_stats()
+        assert stats['hit_rate'] == 'N/A'
+
+    def test_cache_clear(self):
+        """清空缓存重置所有计数"""
+        from src.api.app import SolveCache
+        cache = SolveCache(max_size=10)
+        cache.put('state_A', {'data': 'A'})
+        cache.get('state_A')
+        cache.clear()
+        stats = cache.get_stats()
+        assert stats['cache_size'] == 0
+        assert stats['cache_hits'] == 0
+        assert stats['cache_misses'] == 0
+
+    def test_cache_update_existing(self):
+        """更新已存在的键"""
+        from src.api.app import SolveCache
+        cache = SolveCache(max_size=10)
+        cache.put('state_A', {'data': 'old'})
+        cache.put('state_A', {'data': 'new'})
+        result = cache.get('state_A')
+        assert result['data'] == 'new'
+        assert cache.get_stats()['cache_size'] == 1
+
+
+class TestSolveCacheIntegration:
+    """缓存与API集成测试"""
+
+    @pytest.fixture
+    def client(self):
+        from src.api.app import app, solve_cache
+        app.config['TESTING'] = True
+        solve_cache.clear()
+        with app.test_client() as client:
+            yield client
+
+    def test_solve_caches_result(self, client):
+        """相同打乱第二次应命中缓存"""
+        # 第一次求解
+        resp1 = client.post('/api/solve', json={
+            'scramble': ['R', 'U', "R'", "U'"]
+        })
+        data1 = resp1.get_json()
+        assert data1['success'] is True
+
+        # 第二次求解相同打乱
+        resp2 = client.post('/api/solve', json={
+            'scramble': ['R', 'U', "R'", "U'"]
+        })
+        data2 = resp2.get_json()
+        assert data2['success'] is True
+        assert data2.get('from_cache') is True
+
+    def test_solve_by_state_uses_cache(self, client):
+        """通过状态字符串求解也应缓存"""
+        state = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB'
+        # 先打乱求解以产生缓存
+        resp = client.post('/api/solve', json={'scramble': ['R']})
+        data = resp.get_json()
+        assert data['success'] is True
+
+        # 用相同状态再求解
+        resp2 = client.post('/api/solve', json={
+            'scramble': ['R']
+        })
+        data2 = resp2.get_json()
+        assert data2.get('from_cache') is True
+
+
 class Test404:
     """404 测试"""
 

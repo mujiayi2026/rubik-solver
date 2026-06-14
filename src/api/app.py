@@ -231,6 +231,7 @@ class SolveCache:
         """
         key: str = self._make_key(cube_state)
         if key in self._cache:
+            self._cache[key] = result
             self._cache.move_to_end(key)
         else:
             if len(self._cache) >= self._max_size:

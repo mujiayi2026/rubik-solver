@@ -1014,14 +1014,7 @@ class RubikApp {
         const visualizer = document.getElementById('phase-visualizer');
         if (visualizer) visualizer.style.display = 'none';
 
-        this.updateResult(`按 S 打乱，按 A 一键求解，或点击下方按钮`);
-
-        // Use i18n for the reset message
-        if (window.i18n.getLang() === 'en') {
-            this.updateResult('Press S to scramble, A for one-click solve, or use buttons below');
-        } else {
-            this.updateResult('按 S 打乱，按 A 一键求解，或点击下方按钮');
-        }
+        this.updateResult(window.i18n.t('result.placeholder'));
 
         document.getElementById('stat-moves').textContent = '-';
         document.getElementById('stat-time').textContent = '-';
